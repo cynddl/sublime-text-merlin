@@ -1,0 +1,4 @@
+{
+	// Optional path to merlin binary
+	"ocamlmerlin_path": ""
+}
