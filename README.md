@@ -2,7 +2,7 @@
 
 ## About
 
-This plugin for Sublime Text 3 allow you to analyse OCaml source code, autocomplete and infer types while writing. It checks automatically for syntax or typing errors.
+This plugin for Sublime Text 3 allows you to analyse OCaml source code, autocomplete and infer types while writing. It checks automatically for syntax or typing errors.
 
 ## Installation
 
@@ -12,7 +12,7 @@ The shorter way of doing this is with [opam](opam.ocaml.org), an OCaml package m
 
     opam install merlin
 
-Next, install this package in your Packages folder :
+Next, install this package in your *Packages* folder :
 
     git clone https://github.com/Cynddl/sublime-text-merlin.git
 
