@@ -23,3 +23,8 @@ For the moment (during development), sublime-text-merlin is not listed in the Pa
 This is an initial port of the vim plugin of merlin. Buffers can be synchronised with merlin, but any edit need a full refresh between ST and merlin. Projects are not supported.
 
 If you want to use fully merlin with Sublime Text, fork this repository.
+
+
+## License
+
+Sublime-Text-Merlin is licensed under the MIT License. See the file LICENSE.md for more details.
