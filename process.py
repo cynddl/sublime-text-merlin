@@ -105,3 +105,6 @@ class MerlinProcess:
 
     def report_errors(self):
         return self.send_command("errors")
+
+    def project_find(self, project_path):
+        return self.send_command("project", "find", project_path)

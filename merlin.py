@@ -20,6 +20,22 @@ def merlin_process(name):
     return merlin_processes[name]
 
 
+def load_project(view):
+    """
+    Check if a .merlin file exists in the current project.
+    Automatically import dependancies and modules.
+    """
+    project_data = view.window().project_data()
+    project_path = project_data['folders'][0]['path']
+
+    command = [merlin_bin(), '-project-find', project_path]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    name = process.communicate()[0].strip()
+
+    merlin_processes[view.file_name()].project_find(project_path)
+    return name
+
+
 class Autocomplete(sublime_plugin.EventListener):
     """
     Sublime Text autocompletion integration
@@ -84,7 +100,11 @@ class MerlinBuffer(sublime_plugin.EventListener):
 
     @only_ocaml
     def on_activated(self, view):
+        """
+        Create a Merlin process if necessary and load imported modules.
+        """
         self.process = merlin_process(view.file_name())
+        load_project(view)
 
     @only_ocaml
     def on_modified(self, view):
@@ -134,7 +154,6 @@ class MerlinBuffer(sublime_plugin.EventListener):
 
             # Remove line and character number
             message = e['message']
-            print(message)
 
             error_messages.append((line_r, message))
 
