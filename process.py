@@ -57,6 +57,11 @@ class MerlinProcess:
             raise e
 
     def send_command(self, *cmd):
+        """
+        Send a command to merlin and wait to return the results.
+        Raise an exception if merlin returned an error message.
+        """
+
         if self.mainpipe is None or self.mainpipe.returncode is not None:
             self.restart()
         self.mainpipe.stdin.write(json.dumps(cmd).encode('utf-8'))
@@ -93,6 +98,7 @@ class MerlinProcess:
         return r
 
     def tell(self, kind, content):
+        """ Send content for the current buffer. """
         if content is None:
             return self.send_command("tell", "end")
         elif type(content) is list:
@@ -101,10 +107,13 @@ class MerlinProcess:
             return self.send_command("tell", kind, content)
 
     def complete_cursor(self, base, line, col):
+        """ Return possible completions at the current cursor position. """
         return self.send_command("complete", "prefix", base, "at", {'line': line, 'col': col})
 
     def report_errors(self):
+        """ Return all errors detected by merlin while parsing the current file. """
         return self.send_command("errors")
 
     def project_find(self, project_path):
+        """ Detect .merlin file in the current project and load dependancies. """
         return self.send_command("project", "find", project_path)

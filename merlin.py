@@ -112,6 +112,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
         Create a Merlin process if necessary and load imported modules.
         """
+
         self.process = merlin_process(view.file_name())
         load_project(view)
         self.show_errors(view)
@@ -135,6 +136,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
         Performs a dummy sync by reloading the whole buffer.
         """
+
         content = sublime.Region(0, view.size())
         lines = view.split_by_newlines(content)
 
@@ -145,6 +147,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
         Show a simple gutter icon for each parsing error.
         """
+
         view.erase_regions('ocaml-errors')
 
         errors = self.process.report_errors()
@@ -176,6 +179,11 @@ class MerlinBuffer(sublime_plugin.EventListener):
         self.display_to_status_bar(view)
 
     def display_to_status_bar(self, view):
+        """
+        Display error message to the status bar when the selection intersects
+        with errors in the current view.
+        """
+
         caret_region = view.sel()[0]
 
         for message_region, message_text in self.error_messages:
