@@ -45,6 +45,25 @@ class MerlinLoadProject(sublime_plugin.WindowCommand):
         load_project(self.window.active_view())
 
 
+class MerlinLoadModule(sublime_plugin.WindowCommand):
+    """
+    Command to find modules and load them into the current view.
+    """
+
+    modules = []
+    MerlinProcess
+
+    def run(self):
+        view = self.window.active_view()
+        self.process = merlin_process(view.file_name())
+
+        self.modules = self.process.send_command('find', 'list')
+        self.window.show_quick_panel(self.modules, self.on_complete)
+
+    def on_complete(self, index):
+        self.process.send_command('find', 'use', self.modules[index])
+
+
 class Autocomplete(sublime_plugin.EventListener):
     """
     Sublime Text autocompletion integration
@@ -118,7 +137,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         self.show_errors(view)
 
     @only_ocaml
-    def on_modified(self, view):
+    def on_post_save(self, view):
         """
         Sync the buffer with Merlin on each text edit.
         """
@@ -126,10 +145,11 @@ class MerlinBuffer(sublime_plugin.EventListener):
         self.process.reset()
         self.sync_buffer(view)  # Dummy sync with the whole file
         self.display_to_status_bar(view)
+        self.show_errors(view)
 
     @only_ocaml
-    def on_modified_async(self, view):
-        self.show_errors(view)
+    def on_modified(self, view):
+        view.erase_regions('ocaml-underlines-errors')
 
     @only_ocaml
     def sync_buffer(self, view):
@@ -148,7 +168,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         Show a simple gutter icon for each parsing error.
         """
 
-        view.erase_regions('ocaml-errors')
+        view.erase_regions('ocaml-underlines-errors')
 
         errors = self.process.report_errors()
 

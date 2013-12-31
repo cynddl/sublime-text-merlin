@@ -3,4 +3,8 @@
         "caption": "Merlin: Reload the current project",
         "command": "merlin_load_project"
     },
+    {
+        "caption": "Merlin: Load a module",
+        "command": "merlin_load_module"
+    },
 ]
