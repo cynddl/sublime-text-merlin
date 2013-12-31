@@ -105,6 +105,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
         self.process = merlin_process(view.file_name())
         load_project(view)
+        self.show_errors(view)
 
     @only_ocaml
     def on_modified(self, view):
