@@ -1,6 +1,7 @@
 import functools
 import sublime
 import sublime_plugin
+import re
 
 from .process import *
 from .helpers import *
@@ -75,6 +76,12 @@ class Autocomplete(sublime_plugin.EventListener):
     @only_ocaml
     def on_query_completions(self, view, prefix, locations):
         """ Sublime autocomplete event handler. """
+
+        # Expand the prefix with dots
+        l = locations[0]
+        line = view.substr(sublime.Region(view.line(l).a, l))
+        prefix = re.findall(r"(([\w.]|->)+)", line)[-1][0]
+        print(line, prefix)
 
         process = merlin_process(view.file_name())
 
