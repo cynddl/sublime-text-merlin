@@ -33,7 +33,7 @@ def is_ocaml(view):
 
 
 def only_ocaml(func):
-    """Execute the given function if we are on Python source only
+    """Execute the given function if we are on OCaml source only
     """
 
     @functools.wraps(func)
