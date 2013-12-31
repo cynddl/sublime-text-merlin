@@ -36,6 +36,15 @@ def load_project(view):
     return name
 
 
+class MerlinLoadProject(sublime_plugin.WindowCommand):
+    """
+    Command to reload .merlin file from current project.
+    """
+    def run(self):
+        """ Load the project from the view of the active window. """
+        load_project(self.window.active_view())
+
+
 class Autocomplete(sublime_plugin.EventListener):
     """
     Sublime Text autocompletion integration

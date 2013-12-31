@@ -1,0 +1,6 @@
+[
+    {
+        "caption": "Merlin: Reload the current project",
+        "command": "merlin_load_project"
+    },
+]
