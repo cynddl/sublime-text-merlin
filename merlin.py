@@ -51,18 +51,15 @@ class MerlinLoadModule(sublime_plugin.WindowCommand):
     Command to find modules and load them into the current view.
     """
 
-    modules = []
-    MerlinProcess
-
     def run(self):
         view = self.window.active_view()
         self.process = merlin_process(view.file_name())
 
-        self.modules = self.process.send_command('find', 'list')
+        self.modules = self.process.find_list()
         self.window.show_quick_panel(self.modules, self.on_complete)
 
     def on_complete(self, index):
-        self.process.send_command('find', 'use', self.modules[index])
+        self.process.find_use(self.modules[index])
 
 
 class Autocomplete(sublime_plugin.EventListener):

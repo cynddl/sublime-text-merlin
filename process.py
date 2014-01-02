@@ -26,7 +26,7 @@ class MerlinException(MerlinExc):
     pass
 
 
-class MerlinProcess:
+class MerlinProcess(object):
 
     def __init__(self):
         self.mainpipe = None
@@ -113,6 +113,14 @@ class MerlinProcess:
     def report_errors(self):
         """ Return all errors detected by merlin while parsing the current file. """
         return self.send_command("errors")
+
+    def find_list(self):
+        """ List all possible external modules to load. """
+        return self.send_command('find', 'list')
+
+    def find_use(self, *packages):
+        """ Find and load external modules. """
+        return self.send_command('find', 'use', packages)
 
     def project_find(self, project_path):
         """ Detect .merlin file in the current project and load dependancies. """
