@@ -1,10 +1,13 @@
+""" This module allows you to analyse OCaml source code, autocomplete and infer types while writing """
+
+import subprocess
 import functools
 import sublime
 import sublime_plugin
 import re
 
-from .process import *
-from .helpers import *
+from .process import MerlinProcess, merlin_bin
+from .helpers import merlin_pos, only_ocaml
 
 
 merlin_processes = {}
@@ -78,7 +81,6 @@ class Autocomplete(sublime_plugin.EventListener):
         l = locations[0]
         line = view.substr(sublime.Region(view.line(l).a, l))
         prefix = re.findall(r"(([\w.]|->)+)", line)[-1][0]
-        print(line, prefix)
 
         process = merlin_process(view.file_name())
 

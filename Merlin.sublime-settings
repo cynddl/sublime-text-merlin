@@ -1,4 +1,8 @@
 {
 	// Optional path to merlin binary
-	"ocamlmerlin_path": ""
+	"ocamlmerlin_path": "",
+
+	// Optional flags to add to ocamlmerlin binary
+	// For a full list, see 'ocamlmerlin -help'.
+	"flags": []
 }

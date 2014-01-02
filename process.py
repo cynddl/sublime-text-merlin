@@ -1,11 +1,13 @@
 import subprocess
 import json
-from .helpers import merlin_bin
 
-flags = []
+import sublime
+
+from .helpers import merlin_bin
 
 
 class MerlinExc(Exception):
+    """ Exception returned by merlin. """
 
     def __init__(self, value):
         self.value = value
@@ -15,22 +17,28 @@ class MerlinExc(Exception):
 
 
 class Failure(MerlinExc):
+    """ Failure exception. """
     pass
 
 
 class Error(MerlinExc):
+    """ Error exception. """
     pass
 
 
 class MerlinException(MerlinExc):
+    """ Standard exception. """
     pass
 
 
 class MerlinProcess(object):
+    """
+    This class launches a merlin process and send/receive commands to
+    synchronise buffer, autocomplete...
+    """
 
     def __init__(self):
         self.mainpipe = None
-        self.saved_sync = None
 
     def restart(self):
         if self.mainpipe:
@@ -43,6 +51,8 @@ class MerlinProcess(object):
             except OSError:
                 pass
         try:
+            user_settings = sublime.load_settings("Merlin.sublime-settings")
+            flags = user_settings.get('flags')
             command = [merlin_bin(), '-ignore-sigint']
             command.extend(flags)
             self.mainpipe = subprocess.Popen(
@@ -52,8 +62,8 @@ class MerlinProcess(object):
                 stderr=None,
             )
         except OSError as e:
-            print("Failed starting ocamlmerlin. Please ensure that ocamlmerlin binary \
-              is executable.")
+            print("Failed starting ocamlmerlin. Please ensure that ocamlmerlin \
+                   binary is executable.")
             raise e
 
     def send_command(self, *cmd):
@@ -87,14 +97,12 @@ class MerlinProcess(object):
             return self.send_command("refresh", "quick")
 
     def reset(self, name=None):
-        global saved_sync
         if name:
             r = self.send_command("reset", "name", name)
         else:
             r = self.send_command("reset")
         if name == "myocamlbuild.ml":
             self.find_use("ocamlbuild")
-        saved_sync = None
         return r
 
     def tell(self, kind, content):
@@ -108,10 +116,13 @@ class MerlinProcess(object):
 
     def complete_cursor(self, base, line, col):
         """ Return possible completions at the current cursor position. """
-        return self.send_command("complete", "prefix", base, "at", {'line': line, 'col': col})
+        pos = {'line': line, 'col': col}
+        return self.send_command("complete", "prefix", base, "at", pos)
 
     def report_errors(self):
-        """ Return all errors detected by merlin while parsing the current file. """
+        """
+        Return all errors detected by merlin while parsing the current file.
+        """
         return self.send_command("errors")
 
     def find_list(self):
@@ -123,5 +134,7 @@ class MerlinProcess(object):
         return self.send_command('find', 'use', packages)
 
     def project_find(self, project_path):
-        """ Detect .merlin file in the current project and load dependancies. """
+        """
+        Detect .merlin file in the current project and load dependancies.
+        """
         return self.send_command("project", "find", project_path)
