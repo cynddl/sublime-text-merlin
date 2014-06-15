@@ -41,6 +41,7 @@ class MerlinProcess(object):
         self.mainpipe = None
 
     def restart(self):
+        """ Start a fresh merlin process. """
         if self.mainpipe:
             try:
                 try:
@@ -53,7 +54,7 @@ class MerlinProcess(object):
         try:
             user_settings = sublime.load_settings("Merlin.sublime-settings")
             flags = user_settings.get('flags')
-            command = [merlin_bin(), '-ignore-sigint']
+            command = [merlin_bin()]
             command.extend(flags)
             self.mainpipe = subprocess.Popen(
                 command,
@@ -74,6 +75,7 @@ class MerlinProcess(object):
 
         if self.mainpipe is None or self.mainpipe.returncode is not None:
             self.restart()
+
         self.mainpipe.stdin.write(json.dumps(cmd).encode('utf-8'))
         line = self.mainpipe.stdout.readline()
         result = json.loads(line.decode('utf-8'))
@@ -90,29 +92,53 @@ class MerlinProcess(object):
         elif result[0] == "exception":
             raise MerlinException(content)
 
-    def reload(self, full=False):
-        if full:
-            return self.send_command("refresh")
-        else:
-            return self.send_command("refresh", "quick")
+    def reload(self):
+        """ Detect and reload .cmi files that may have changed. """
+        return self.send_command("refresh")
 
-    def reset(self, name=None):
+    def reset(self, kind="ml", name=None):
+        """
+        Clear buffer content on merlin side, initialize parser for file of kind
+        'ml' or 'mli'.
+        """
         if name:
-            r = self.send_command("reset", "name", name)
+            r = self.send_command("reset", kind, name)
         else:
-            r = self.send_command("reset")
+            r = self.send_command("reset", kind)
         if name == "myocamlbuild.ml":
             self.find_use("ocamlbuild")
         return r
 
-    def tell(self, kind, content):
+    def _parse_cursor(self,result):
+        """ Parser cursor values returned by merlin. """
+        position = result['cursor']
+        marker = result['marker']
+        return (position['line'], position['col'], marker)
+
+    def send_cursor_command(self, *cmd):
+        """ Generic method for commands returning cursor position. """
+        return self._parse_cursor(self.send_command(*cmd))
+
+    def tell_start(self):
+        """ Prepare merlin to receive new input. """
+        return self.send_cursor_command("tell", "start")
+
+    def tell_marker(self):
+        """ Put marker at current point. """
+        return self.send_cursor_command("tell", "marker")
+
+    def tell_source(self, content):
         """ Send content for the current buffer. """
         if content is None:
-            return self.send_command("tell", "end")
+            return self.send_cursor_command("tell", "eof")
         elif type(content) is list:
-            return self.send_command("tell", kind, "\n".join(content) + "\n")
+            return self.send_cursor_command("tell", "source", "\n".join(content) + "\n")
         else:
-            return self.send_command("tell", kind, content)
+            return self.send_cursor_command("tell", "source", content)
+
+    def seek_start(self):
+        """ Reset cursor to the beginning of the file. """
+        return self.send_cursor_command("seek","before",{'line': 1, 'col': 0})
 
     def complete_cursor(self, base, line, col):
         """ Return possible completions at the current cursor position. """
@@ -133,8 +159,37 @@ class MerlinProcess(object):
         """ Find and load external modules. """
         return self.send_command('find', 'use', packages)
 
-    def project_find(self, project_path):
-        """
-        Detect .merlin file in the current project and load dependancies.
-        """
-        return self.send_command("project", "find", project_path)
+    def project_find(self, path):
+        """ Detect .merlin file from a file path.  """
+        return self.send_command("project", "find", path)
+
+    def project_load(self, project_path):
+        """ Load specified path as project file (".merlin").  """
+        return self.send_command("project", "load", project_path)
+
+    def sync_buffer_to(self, view, cursor):
+        """ Synchronize the buffer up to specified position.  """
+
+        end = view.size()
+        content = sublime.Region(0, cursor)
+
+        self.seek_start()
+        self.tell_start()
+        self.tell_source(view.substr(content))
+
+        _, _, marker = self.tell_marker()
+        while marker and cursor < end:
+            next_cursor = min(cursor + 1024, end)
+            content = sublime.Region(cursor, next_cursor)
+            _, _, marker = self.tell_source(view.substr(content))
+            cursor = next_cursor
+        if marker:
+            self.tell_source(None)
+
+    def sync_buffer_to_cursor(self, view):
+        """ Synchronize the buffer up to user cursor.  """
+        return self.sync_buffer_to(view, view.sel()[-1].end())
+
+    def sync_buffer(self, view):
+        """ Synchronize the whole buffer.  """
+        self.sync_buffer_to(view, view.size())

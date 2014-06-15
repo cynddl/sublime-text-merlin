@@ -19,10 +19,10 @@ def merlin_bin():
     if "/usr/local/bin" not in os.environ['PATH'].split(os.pathsep):
         os.environ['PATH'] += os.pathsep + "/usr/local/bin"
     opam_process = subprocess.Popen('opam config var bin', stdout=subprocess.PIPE, shell=True)
-    opam_bin_path = opam_process.stdout.read().decode('utf-8')
+    opam_bin_path = opam_process.stdout.read().decode('utf-8').rstrip() + '/ocamlmerlin'
 
-    if opam_bin_path:
-        return opam_bin_path.rstrip() + '/ocamlmerlin'
+    if os.path.isfile(opam_bin_path) and os.access(opam_bin_path, os.X_OK):
+        return opam_bin_path
     else:
         return 'ocamlmerlin'
 
@@ -54,7 +54,7 @@ def only_ocaml(func):
 def merlin_pos(view, pos):
     """
     Convert a position returned by Merlin to a Sublime text point.
-    Merlin uses character positions and starts each file at line 0.
+    Sublime uses character positions and starts each file at line 0.
     """
 
     return view.text_point(pos['line'] - 1, pos['col'])

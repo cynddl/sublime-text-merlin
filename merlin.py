@@ -20,24 +20,10 @@ def merlin_process(name):
 
     if name not in merlin_processes:
         merlin_processes[name] = MerlinProcess()
+        merlin_processes[name].project_find(name)
+        merlin_processes[name].reset(name=name)
 
     return merlin_processes[name]
-
-
-def load_project(view):
-    """
-    Check if a .merlin file exists in the current project.
-    Automatically import dependancies and modules.
-    """
-    project_data = view.window().project_data()
-    project_path = project_data['folders'][0]['path']
-
-    command = [merlin_bin(), '-project-find', project_path]
-    process = subprocess.Popen(command, stdout=subprocess.PIPE)
-    name = process.communicate()[0].strip()
-
-    merlin_processes[view.file_name()].project_find(project_path)
-    return name
 
 
 class MerlinLoadProject(sublime_plugin.WindowCommand):
@@ -46,7 +32,8 @@ class MerlinLoadProject(sublime_plugin.WindowCommand):
     """
     def run(self):
         """ Load the project from the view of the active window. """
-        load_project(self.window.active_view())
+        view = self.window.active_view()
+        merlin_process(view.file_name()).project_load(view.file_name())
 
 
 class MerlinLoadModule(sublime_plugin.WindowCommand):
@@ -83,6 +70,7 @@ class Autocomplete(sublime_plugin.EventListener):
         prefix = re.findall(r"(([\w.]|->)+)", line)[-1][0]
 
         process = merlin_process(view.file_name())
+        process.sync_buffer_to_cursor(view)
 
         default_return = ([], sublime.INHIBIT_WORD_COMPLETIONS)
 
@@ -97,7 +85,7 @@ class Autocomplete(sublime_plugin.EventListener):
         if self.cplns_ready is None:
             self.cplns_ready = False
             line, col = view.rowcol(locations[0])
-            result = process.complete_cursor(prefix, line, col)
+            result = process.complete_cursor(prefix, line + 1, col)
             self.cplns = [(r['name'] + '\t' + r['desc'], r['name']) for r in result]
 
             self.show_completions(view, self.cplns)
@@ -129,8 +117,13 @@ class MerlinBuffer(sublime_plugin.EventListener):
      - display errors in the gutter.
     """
 
-    process = None
+    _process = None
     error_messages = []
+
+    def process(self, view):
+        if not self._process:
+            self._process = merlin_process(view.file_name())
+        return self._process
 
     @only_ocaml
     def on_activated(self, view):
@@ -138,8 +131,6 @@ class MerlinBuffer(sublime_plugin.EventListener):
         Create a Merlin process if necessary and load imported modules.
         """
 
-        self.process = merlin_process(view.file_name())
-        load_project(view)
         self.show_errors(view)
 
     @only_ocaml
@@ -148,26 +139,13 @@ class MerlinBuffer(sublime_plugin.EventListener):
         Sync the buffer with Merlin on each text edit.
         """
 
-        self.process.reset()
-        self.sync_buffer(view)  # Dummy sync with the whole file
+        self.process(view).sync_buffer(view)  # Dummy sync with the whole file
         self.display_to_status_bar(view)
         self.show_errors(view)
 
     @only_ocaml
     def on_modified(self, view):
         view.erase_regions('ocaml-underlines-errors')
-
-    @only_ocaml
-    def sync_buffer(self, view):
-        """
-        Performs a dummy sync by reloading the whole buffer.
-        """
-
-        content = sublime.Region(0, view.size())
-        lines = view.split_by_newlines(content)
-
-        self.process.tell('source', [view.substr(l) for l in lines])
-        self.process.tell('source', None)  # EOF
 
     def show_errors(self, view):
         """
@@ -176,7 +154,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
 
         view.erase_regions('ocaml-underlines-errors')
 
-        errors = self.process.report_errors()
+        errors = self.process(view).report_errors()
 
         error_messages = []
         underlines = []
