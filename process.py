@@ -140,6 +140,13 @@ class MerlinProcess(object):
         """ Reset cursor to the beginning of the file. """
         return self.send_cursor_command("seek","before",{'line': 1, 'col': 0})
 
+    def seek_marker(self):
+        """
+        After satisfaying a tell marker, place the cursor immediately after the
+        marker.
+        """
+        return self.send_cursor_command("seek","marker")
+
     def complete_cursor(self, base, line, col):
         """ Return possible completions at the current cursor position. """
         pos = {'line': line, 'col': col}
@@ -185,6 +192,8 @@ class MerlinProcess(object):
             cursor = next_cursor
         if marker:
             self.tell_source(None)
+        else:
+            self.seek_marker()
 
     def sync_buffer_to_cursor(self, view):
         """ Synchronize the buffer up to user cursor.  """
