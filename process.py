@@ -77,6 +77,7 @@ class MerlinProcess(object):
             self.restart()
 
         self.mainpipe.stdin.write(json.dumps(cmd).encode('utf-8'))
+        self.mainpipe.stdin.flush()
         line = self.mainpipe.stdout.readline()
         result = json.loads(line.decode('utf-8'))
         content = None
