@@ -35,4 +35,12 @@
         "caption": "Merlin: Type expression under cursor",
         "command": "merlin_type_enclosing"
     },
+    {
+        "caption": "Merlin: Enable syntax extension",
+        "command": "merlin_enable_extension"
+    },
+    {
+        "caption": "Merlin: Disable syntax extension",
+        "command": "merlin_disable_extension"
+    },
 ]

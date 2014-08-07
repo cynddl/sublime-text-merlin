@@ -130,6 +130,40 @@ class MerlinRemoveSourcePath(sublime_plugin.WindowCommand):
         self.process.remove_source_path(self.directories[index])
 
 
+class MerlinEnableExtension(sublime_plugin.WindowCommand):
+    """
+    Enable syntax extension
+    """
+
+    def run(self):
+        view = self.window.active_view()
+        self.process = merlin_process(view.file_name())
+
+        self.extensions = self.process.extension_list('disabled')
+        self.window.show_quick_panel(self.extensions, self.on_done)
+
+    def on_done(self, index):
+        if index == -1: return
+        self.process.extension_enable([self.extensions[index]])
+
+
+class MerlinDisableExtension(sublime_plugin.WindowCommand):
+    """
+    Disable syntax extension
+    """
+
+    def run(self):
+        view = self.window.active_view()
+        self.process = merlin_process(view.file_name())
+
+        self.extensions = self.process.extension_list('enabled')
+        self.window.show_quick_panel(self.extensions, self.on_done)
+
+    def on_done(self, index):
+        if index == -1: return
+        self.process.extension_disable([self.extensions[index]])
+
+
 class MerlinTypeEnclosing(sublime_plugin.WindowCommand):
     """
     Return type information around cursor.

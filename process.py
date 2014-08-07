@@ -227,3 +227,16 @@ class MerlinProcess(object):
     def type_enclosing(self, line, col):
         pos = {'line': line, 'col': col}
         return self.send_command("type", "enclosing", "at", pos)
+
+    # Extensions management
+    def extension_list(self, crit=None):
+        if crit: # "enabled" | "disabled"
+            return self.send_command("extension","list",crit)
+        else:
+            return self.send_command("extension","list")
+
+    def extension_enable(self, exts):
+        self.send_command("extension","enable",exts)
+
+    def extension_disable(self, exts):
+        self.send_command("extension","disable",exts)
