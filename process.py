@@ -30,7 +30,6 @@ class MerlinException(MerlinExc):
     """ Standard exception. """
     pass
 
-
 class MerlinProcess(object):
     """
     This class launches a merlin process and send/receive commands to
@@ -203,3 +202,28 @@ class MerlinProcess(object):
     def sync_buffer(self, view):
         """ Synchronize the whole buffer.  """
         self.sync_buffer_to(view, view.size())
+
+    # Path management
+    def add_build_path(self, path):
+        return self.send_command("path", "add", "build", path)
+    def add_source_path(self, path):
+        return self.send_command("path", "add", "source", path)
+    def remove_build_path(self, path):
+        return self.send_command("path", "remove", "build", path)
+    def remove_source_path(self, path):
+        return self.send_command("path", "remove", "source", path)
+    def list_build_path(self):
+        return self.send_command("path", "list", "build")
+    def list_source_path(self):
+        return self.send_command("path", "list", "source")
+
+    # File selection
+    def which_path(self, names):
+        return self.send_command("which", "path", names)
+    def which_with_ext(self, extensions):
+        return self.send_command("which", "with_ext", extensions)
+
+    # Type information
+    def type_enclosing(self, line, col):
+        pos = {'line': line, 'col': col}
+        return self.send_command("type", "enclosing", "at", pos)

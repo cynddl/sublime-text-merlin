@@ -5,6 +5,7 @@ import functools
 import sublime
 import sublime_plugin
 import re
+import os
 
 from .process import MerlinProcess, merlin_bin
 from .helpers import merlin_pos, only_ocaml
@@ -36,9 +37,9 @@ class MerlinLoadProject(sublime_plugin.WindowCommand):
         merlin_process(view.file_name()).project_load(view.file_name())
 
 
-class MerlinLoadModule(sublime_plugin.WindowCommand):
+class MerlinLoadPackage(sublime_plugin.WindowCommand):
     """
-    Command to find modules and load them into the current view.
+    Command to find packages and load them into the current view.
     """
 
     def run(self):
@@ -46,10 +47,155 @@ class MerlinLoadModule(sublime_plugin.WindowCommand):
         self.process = merlin_process(view.file_name())
 
         self.modules = self.process.find_list()
-        self.window.show_quick_panel(self.modules, self.on_complete)
+        self.window.show_quick_panel(self.modules, self.on_done)
 
-    def on_complete(self, index):
+    def on_done(self, index):
+        if index == -1: return
         self.process.find_use(self.modules[index])
+
+
+class MerlinAddBuildPath(sublime_plugin.WindowCommand):
+    """
+    Command to add a directory to the build path (for completion, typechecking, etc).
+    """
+
+    def run(self):
+        view = self.window.active_view()
+        file_name = view.file_name()
+        self.process = merlin_process(file_name)
+
+        if file_name:
+            wd = os.path.dirname(os.path.abspath(file_name))
+        else:
+            wd = os.getcwd()
+
+        self.window.show_input_panel("Add build path", wd, self.on_done, None, None)
+
+    def on_done(self, directory):
+        self.process.add_build_path(directory)
+
+
+class MerlinAddSourcePath(sublime_plugin.WindowCommand):
+    """
+    Command to add a directory to the source path (for jumping to definition).
+    """
+
+    def run(self):
+        view = self.window.active_view()
+        file_name = view.file_name()
+        self.process = merlin_process(file_name)
+
+        if file_name:
+            wd = os.path.dirname(os.path.abspath(file_name))
+        else:
+            wd = os.getcwd()
+
+        self.window.show_input_panel("Add source path", wd, self.on_done, None, None)
+
+    def on_done(self, directory):
+        self.process.add_source_path(directory)
+
+
+class MerlinRemoveBuildPath(sublime_plugin.WindowCommand):
+    """
+    Command to remove a directory from the build path.
+    """
+
+    def run(self):
+        view = self.window.active_view()
+        self.process = merlin_process(view.file_name())
+
+        self.directories = self.process.list_build_path()
+        self.window.show_quick_panel(self.directories, self.on_done)
+
+    def on_done(self, index):
+        if index == -1: return
+        self.process.remove_build_path(self.directories[index])
+
+
+class MerlinRemoveSourcePath(sublime_plugin.WindowCommand):
+    """
+    Command to remove a directory from the source path.
+    """
+
+    def run(self):
+        view = self.window.active_view()
+        self.process = merlin_process(view.file_name())
+
+        self.directories = self.process.list_source_path()
+        self.window.show_quick_panel(self.directories, self.on_done)
+
+    def on_done(self, index):
+        if index == -1: return
+        self.process.remove_source_path(self.directories[index])
+
+
+class MerlinTypeEnclosing(sublime_plugin.WindowCommand):
+    """
+    Return type information around cursor.
+    """
+
+    def run(self):
+        view = self.window.active_view()
+        process = merlin_process(view.file_name())
+        process.sync_buffer_to_cursor(view)
+
+        pos = view.sel()
+        line, col = view.rowcol(pos[0].begin())
+        enclosing = process.type_enclosing(line + 1, col)
+
+        # FIXME: proper integration into sublime-text
+        # enclosing is a list of json objects of the form:
+        # { 'type': string;
+        #   'tail': "no"|"position"|"call" // tailcall information
+        #   'start', 'end': {'line': int, 'col': int}
+        # }
+        enclosing = map(lambda json: json['type'], enclosing)
+        enclosing = list(enclosing)
+        self.window.show_quick_panel(enclosing, self.on_done)
+
+    def on_done(self, index):
+        pass
+
+
+class MerlinWhich(sublime_plugin.WindowCommand):
+    """
+    Abstract command to quickly find a file.
+    """
+
+    def extensions(self):
+        return []
+
+    def run(self):
+        view = self.window.active_view()
+        self.process = merlin_process(view.file_name())
+
+        self.files = self.process.which_with_ext(self.extensions())
+        self.window.show_quick_panel(self.files, self.on_done)
+
+    def on_done(self, index):
+        if index == -1: return
+        module_name = self.files[index]
+        modules = map(lambda ext: module_name + ext, self.extensions())
+        self.window.open_file(self.process.which_path(list(modules)))
+
+
+class MerlinFindMl(MerlinWhich):
+    """
+    Command to quickly find an ML file.
+    """
+
+    def extensions(self):
+        return [".ml",".mli"]
+
+
+class MerlinFindMli(MerlinWhich):
+    """
+    Command to quickly find an MLI file.
+    """
+
+    def extensions(self):
+        return [".mli",".ml"]
 
 
 class Autocomplete(sublime_plugin.EventListener):
@@ -125,13 +271,13 @@ class MerlinBuffer(sublime_plugin.EventListener):
             self._process = merlin_process(view.file_name())
         return self._process
 
-    @only_ocaml
-    def on_activated(self, view):
-        """
-        Create a Merlin process if necessary and load imported modules.
-        """
+    #@only_ocaml
+    #def on_activated(self, view):
+    #    """
+    #    Create a Merlin process if necessary and load imported modules.
+    #    """
 
-        self.show_errors(view)
+    #    self.show_errors(view)
 
     @only_ocaml
     def on_post_save(self, view):

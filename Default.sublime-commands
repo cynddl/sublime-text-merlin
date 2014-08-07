@@ -4,7 +4,35 @@
         "command": "merlin_load_project"
     },
     {
-        "caption": "Merlin: Load a module",
-        "command": "merlin_load_module"
+        "caption": "Merlin: Load a package",
+        "command": "merlin_load_package"
+    },
+    {
+        "caption": "Merlin: Add directory to build path",
+        "command": "merlin_add_build_path"
+    },
+    {
+        "caption": "Merlin: Add directory to source path",
+        "command": "merlin_add_source_path"
+    },
+    {
+        "caption": "Merlin: Remove directory from build path",
+        "command": "merlin_remove_build_path"
+    },
+    {
+        "caption": "Merlin: Remove directory from source path",
+        "command": "merlin_remove_source_path"
+    },
+    {
+        "caption": "Merlin: Find ML file",
+        "command": "merlin_find_ml"
+    },
+    {
+        "caption": "Merlin: Find MLI file",
+        "command": "merlin_find_mli"
+    },
+    {
+        "caption": "Merlin: Type expression under cursor",
+        "command": "merlin_type_enclosing"
     },
 ]
