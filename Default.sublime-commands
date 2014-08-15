@@ -43,4 +43,12 @@
         "caption": "Merlin: Disable syntax extension",
         "command": "merlin_disable_extension"
     },
+    {
+        "caption": "Merlin: Locate definition under cursor",
+        "command": "merlin_locate"
+    },
+    {
+        "caption": "Merlin: Locate definition by name",
+        "command": "merlin_locate_name"
+    },
 ]

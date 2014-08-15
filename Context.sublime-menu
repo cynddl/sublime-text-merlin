@@ -1,4 +1,5 @@
 [
   { "caption": "-"},
-  { "command": "merlin_type_menu", "caption": "✱ Types" },
+  { "command": "merlin_type_menu", "caption": "Types" },
+  { "command": "merlin_locate", "caption": "Jump to definition" },
 ]

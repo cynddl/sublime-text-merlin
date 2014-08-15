@@ -227,6 +227,51 @@ class MerlinTypeMenu(sublime_plugin.TextCommand):
         enclosing = MerlinTypeEnclosing(self.view)
         enclosing.show_menu()
 
+def merlin_locate_result(result, window):
+    if isinstance(result, dict):
+        pos = result['pos']
+        if 'file' in result:
+            filename = "%s:%d:%d" % (result['file'], pos['line'] - 1, pos['col'])
+            window.open_file(filename, sublime.ENCODED_POSITION | sublime.TRANSIENT)
+        else:
+            view = window.active_view()
+            sel = view.sel()
+            sel.clear()
+            pos = merlin_pos(view, pos)
+            sel.add(sublime.Region(pos,pos))
+            view.show_at_center(pos)
+    else:
+        sublime.message_dialog(result)
+
+class MerlinLocate(sublime_plugin.WindowCommand):
+    """
+    Locate definition under cursor
+    """
+    def run(self):
+        view = self.window.active_view()
+        process = merlin_process(view.file_name())
+        process.sync_buffer_to_cursor(view)
+
+        pos = view.sel()
+        line, col = view.rowcol(pos[0].begin())
+        merlin_locate_result(process.locate(line + 1, col), self.window)
+
+
+class MerlinLocateName(sublime_plugin.WindowCommand):
+    """
+    Locate definition by name
+    """
+    def run(self, edit):
+        self.window.show_input_panel("Enter name", "", self.on_done, None, None)
+
+    def on_done(self, name):
+        view = self.window.active_view()
+        process = merlin_process(view.file_name())
+        process.sync_buffer_to_cursor(view)
+
+        pos = view.sel()
+        line, col = view.rowcol(pos[0].begin())
+        merlin_locate_result(process.locate(line + 1, col, ident=name), self.window)
 
 class MerlinWhich(sublime_plugin.WindowCommand):
     """
