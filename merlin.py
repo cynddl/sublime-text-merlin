@@ -231,7 +231,7 @@ def merlin_locate_result(result, window):
     if isinstance(result, dict):
         pos = result['pos']
         if 'file' in result:
-            filename = "%s:%d:%d" % (result['file'], pos['line'] - 1, pos['col'])
+            filename = "%s:%d:%d" % (result['file'], pos['line'] - 1, pos['col'] + 1)
             window.open_file(filename, sublime.ENCODED_POSITION | sublime.TRANSIENT)
         else:
             view = window.active_view()
