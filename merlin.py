@@ -164,19 +164,17 @@ class MerlinDisableExtension(sublime_plugin.WindowCommand):
         self.process.extension_disable([self.extensions[index]])
 
 
-class MerlinTypeEnclosing(sublime_plugin.WindowCommand):
+class MerlinTypeEnclosing:
     """
     Return type information around cursor.
     """
 
-    def run(self):
-        view = self.window.active_view()
+    def __init__(self,view):
         process = merlin_process(view.file_name())
         process.sync_buffer_to_cursor(view)
 
         pos = view.sel()
         line, col = view.rowcol(pos[0].begin())
-        enclosing = process.type_enclosing(line + 1, col)
 
         # FIXME: proper integration into sublime-text
         # enclosing is a list of json objects of the form:
@@ -184,12 +182,50 @@ class MerlinTypeEnclosing(sublime_plugin.WindowCommand):
         #   'tail': "no"|"position"|"call" // tailcall information
         #   'start', 'end': {'line': int, 'col': int}
         # }
-        enclosing = map(lambda json: json['type'], enclosing)
-        enclosing = list(enclosing)
-        self.window.show_quick_panel(enclosing, self.on_done)
+        self.enclosing = process.type_enclosing(line + 1, col)
+        self.view = view
+
+    def _item_region(self, item):
+        start = merlin_pos(self.view, item['start'])
+        end = merlin_pos(self.view, item['end'])
+        return sublime.Region(start, end)
+
+    def _item_format(self, item):
+        text = item['type']
+        if item['tail'] == 'position': text = text + " (*tail-position*)"
+        if item['tail'] == 'call': text = text + " (*tail-call*)"
+        return text
+
+    def _items(self):
+        return list(map(self._item_format, self.enclosing))
+
+    def show_panel(self):
+        self.view.window().show_quick_panel(self._items(), self.on_done, sublime.MONOSPACE_FONT)
+
+    def show_menu(self):
+        self.view.show_popup_menu(self._items(), self.on_done, sublime.MONOSPACE_FONT)
 
     def on_done(self, index):
-        pass
+        if index > -1:
+            sel = self.view.sel()
+            sel.clear()
+            sel.add(self._item_region(self.enclosing[index]))
+
+class MerlinTypeCommand(sublime_plugin.WindowCommand):
+    """
+    Return type information around cursor.
+    """
+    def run(self):
+        enclosing = MerlinTypeEnclosing(self.view)
+        enclosing.show_panel()
+
+class MerlinTypeMenu(sublime_plugin.TextCommand):
+    """
+    Display type information in context menu
+    """
+    def run(self, edit):
+        enclosing = MerlinTypeEnclosing(self.view)
+        enclosing.show_menu()
 
 
 class MerlinWhich(sublime_plugin.WindowCommand):

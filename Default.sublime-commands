@@ -33,7 +33,7 @@
     },
     {
         "caption": "Merlin: Type expression under cursor",
-        "command": "merlin_type_enclosing"
+        "command": "merlin_type_command"
     },
     {
         "caption": "Merlin: Enable syntax extension",
