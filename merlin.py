@@ -328,7 +328,11 @@ class Autocomplete(sublime_plugin.EventListener):
         # Expand the prefix with dots
         l = locations[0]
         line = view.substr(sublime.Region(view.line(l).a, l))
-        prefix = re.findall(r"(([\w.]|->)+)", line)[-1][0]
+
+        try:
+            prefix = re.findall(r"(([\w.]|->)+)", line)[-1][0]
+        except IndexError:
+            prefix = ""
 
         process = merlin_process(view.file_name())
         process.sync_buffer_to_cursor(view)
