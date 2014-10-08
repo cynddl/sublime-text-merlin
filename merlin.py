@@ -11,30 +11,12 @@ from .process import MerlinProcess, merlin_bin
 from .helpers import merlin_pos, only_ocaml
 
 
-merlin_processes = {}
-
-
+running_process = None
 def merlin_process(name):
-    global merlin_processes
-    if name is None:
-        name = ''
-
-    if name not in merlin_processes:
-        merlin_processes[name] = MerlinProcess()
-        merlin_processes[name].project_find(name)
-        merlin_processes[name].reset(name=name)
-
-    return merlin_processes[name]
-
-
-class MerlinLoadProject(sublime_plugin.WindowCommand):
-    """
-    Command to reload .merlin file from current project.
-    """
-    def run(self):
-        """ Load the project from the view of the active window. """
-        view = self.window.active_view()
-        merlin_process(view.file_name()).project_load(view.file_name())
+    global running_process
+    if running_process is None:
+        running_process = MerlinProcess()
+    return running_process.acquire(name)
 
 
 class MerlinLoadPackage(sublime_plugin.WindowCommand):

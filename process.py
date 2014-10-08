@@ -38,6 +38,7 @@ class MerlinProcess(object):
 
     def __init__(self):
         self.mainpipe = None
+        self.name = None
 
     def restart(self):
         """ Start a fresh merlin process. """
@@ -95,6 +96,15 @@ class MerlinProcess(object):
     def reload(self):
         """ Detect and reload .cmi files that may have changed. """
         return self.send_command("refresh")
+
+    def acquire(self, name):
+        """
+        Make sure that the process is working on buffer with the specified name.
+        """
+        if self.name != name:
+            self.name = name
+            self.reset(name=name)
+        return self
 
     def reset(self, kind="ml", name=None):
         """
@@ -166,13 +176,15 @@ class MerlinProcess(object):
         """ Find and load external modules. """
         return self.send_command('find', 'use', packages)
 
-    def project_find(self, path):
-        """ Detect .merlin file from a file path.  """
-        return self.send_command("project", "find", path)
-
-    def project_load(self, project_path):
-        """ Load specified path as project file (".merlin").  """
-        return self.send_command("project", "load", project_path)
+    def project():
+        """
+        Returns a tuple
+          (dot_merlins, failures)
+        where dot_merlins is a list of loaded .merlin files
+          and failures is the list of errors which occured during loading
+        """
+        result = self.send_command("project", "get")
+        return (result['result'], result['failures'])
 
     def sync_buffer_to(self, view, cursor):
         """ Synchronize the buffer up to specified position.  """
