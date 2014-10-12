@@ -8,7 +8,7 @@ import re
 import os
 
 from .process import MerlinProcess, merlin_bin
-from .helpers import merlin_pos, only_ocaml
+from .helpers import merlin_pos, only_ocaml, clean_whitespace
 
 
 running_process = None
@@ -176,7 +176,7 @@ class MerlinTypeEnclosing:
         text = item['type']
         if item['tail'] == 'position': text = text + " (*tail-position*)"
         if item['tail'] == 'call': text = text + " (*tail-call*)"
-        return text
+        return clean_whitespace(text)
 
     def _items(self):
         return list(map(self._item_format, self.enclosing))
@@ -333,7 +333,7 @@ class Autocomplete(sublime_plugin.EventListener):
             self.cplns_ready = False
             line, col = view.rowcol(locations[0])
             result = process.complete_cursor(prefix, line + 1, col)
-            self.cplns = [(r['name'] + '\t' + r['desc'], r['name']) for r in result]
+            self.cplns = [(clean_whitespace(r['name'] + '\t' + r['desc']), r['name']) for r in result]
 
             self.show_completions(view, self.cplns)
 

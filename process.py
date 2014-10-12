@@ -106,7 +106,7 @@ class MerlinProcess(object):
             self.reset(name=name)
         return self
 
-    def reset(self, kind="ml", name=None):
+    def reset(self, kind="auto", name=None):
         """
         Clear buffer content on merlin side, initialize parser for file of kind
         'ml' or 'mli'.
