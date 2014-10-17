@@ -225,7 +225,7 @@ def merlin_locate_result(result, window):
     else:
         sublime.message_dialog(result)
 
-class MerlinLocate(sublime_plugin.WindowCommand):
+class MerlinLocateMli(sublime_plugin.WindowCommand):
     """
     Locate definition under cursor
     """
@@ -236,15 +236,21 @@ class MerlinLocate(sublime_plugin.WindowCommand):
 
         pos = view.sel()
         line, col = view.rowcol(pos[0].begin())
-        merlin_locate_result(process.locate(line + 1, col), self.window)
+        merlin_locate_result(process.locate(line + 1, col, kind=self.kind()), self.window)
+
+    def kind(self):
+        return "mli"
 
 
-class MerlinLocateName(sublime_plugin.WindowCommand):
+class MerlinLocateNameMli(sublime_plugin.WindowCommand):
     """
     Locate definition by name
     """
     def run(self, edit):
         self.window.show_input_panel("Enter name", "", self.on_done, None, None)
+
+    def kind(self):
+      return "mli"
 
     def on_done(self, name):
         view = self.window.active_view()
@@ -254,6 +260,14 @@ class MerlinLocateName(sublime_plugin.WindowCommand):
         pos = view.sel()
         line, col = view.rowcol(pos[0].begin())
         merlin_locate_result(process.locate(line + 1, col, ident=name), self.window)
+
+class MerlinLocateMl(MerlinLocateMli):
+    def kind(self):
+        return "ml"
+
+class MerlinLocateNameMl(MerlinLocateNameMli):
+    def kind(self):
+        return "ml"
 
 class MerlinWhich(sublime_plugin.WindowCommand):
     """

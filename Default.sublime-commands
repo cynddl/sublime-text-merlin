@@ -41,10 +41,18 @@
     },
     {
         "caption": "Merlin: Locate definition under cursor",
-        "command": "merlin_locate"
+        "command": "merlin_locate_ml"
+    },
+    {
+        "caption": "Merlin: Locate definition under cursor (to .mli)",
+        "command": "merlin_locate_mli"
     },
     {
         "caption": "Merlin: Locate definition by name",
-        "command": "merlin_locate_name"
+        "command": "merlin_locate_name_ml"
+    },
+    {
+        "caption": "Merlin: Locate definition by name (to .mli)",
+        "command": "merlin_locate_name_mli"
     },
 ]

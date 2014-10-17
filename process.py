@@ -253,8 +253,8 @@ class MerlinProcess(object):
     def extension_disable(self, exts):
         self.send_command("extension","disable",exts)
 
-    def locate(self, line, col, ident=""):
+    def locate(self, line, col, ident="", kind="mli"):
         if line is None or col is None:
-            return self.send_command("locate", ident)
+            return self.send_command("locate", ident, kind)
         else:
-            return self.send_command("locate", ident, "at", {'line': line, 'col': col})
+            return self.send_command("locate", ident, kind, "at", {'line': line, 'col': col})

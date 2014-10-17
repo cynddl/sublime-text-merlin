@@ -1,5 +1,6 @@
 [
   { "caption": "-"},
   { "command": "merlin_type_menu", "caption": "Types" },
-  { "command": "merlin_locate", "caption": "Jump to definition" },
+  { "command": "merlin_locate_ml", "caption": "Jump to definition" },
+  { "command": "merlin_locate_mli", "caption": "Jump to declaration" },
 ]
