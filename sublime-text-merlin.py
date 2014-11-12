@@ -1,4 +1,6 @@
-""" This module allows you to analyse OCaml source code, autocomplete and infer types while writing """
+"""
+This module allows you to analyse OCaml source code, autocomplete and infer types while writing
+"""
 
 import subprocess
 import functools
@@ -6,9 +8,10 @@ import sublime
 import sublime_plugin
 import re
 import os
+import sys
 
-from .process import MerlinProcess, merlin_bin
-from .helpers import merlin_pos, only_ocaml, clean_whitespace
+from merlin.process import MerlinProcess, merlin_bin
+from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 
 
 running_process = None
@@ -427,7 +430,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
             pnt_stop = merlin_pos(view, pos_stop)
             r = sublime.Region(pnt_start, pnt_stop)
             line_r = view.full_line(r)
-            line_r.a -= 1
+            line_r = sublime.Region(line_r.a - 1, line_r.b)
             underlines.append(r)
 
             # Remove line and character number
@@ -437,7 +440,8 @@ class MerlinBuffer(sublime_plugin.EventListener):
 
         self.error_messages = error_messages
         flag = sublime.DRAW_OUTLINED
-        view.add_regions('ocaml-underlines-errors', underlines, scope='ocaml-underlines-errors', icon='dot', flags=flag)
+        # add_regions(key, regions, scope, icon, flags)
+        view.add_regions('ocaml-underlines-errors', underlines, 'ocaml-underlines-errors', 'dot', flag)
 
     @only_ocaml
     def on_selection_modified(self, view):
@@ -454,6 +458,5 @@ class MerlinBuffer(sublime_plugin.EventListener):
         for message_region, message_text in self.error_messages:
             if message_region.intersects(caret_region):
                 sublime.status_message(message_text)
-                return
             else:
                 sublime.status_message('')

@@ -54,5 +54,5 @@
     {
         "caption": "Merlin: Locate definition by name (to .mli)",
         "command": "merlin_locate_name_mli"
-    },
+    }
 ]
