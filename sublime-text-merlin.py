@@ -10,9 +10,12 @@ import re
 import os
 import sys
 
-from merlin.process import MerlinProcess, merlin_bin
-from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
-
+if sys.version_info < (3, 0):
+    from merlin.process import MerlinProcess, merlin_bin
+    from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
+else:
+    from .merlin.process import MerlinProcess, merlin_bin
+    from .merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 
 running_process = None
 def merlin_process(name):
