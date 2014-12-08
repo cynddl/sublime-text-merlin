@@ -444,7 +444,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         self.error_messages = error_messages
         flag = sublime.DRAW_OUTLINED
         # add_regions(key, regions, scope, icon, flags)
-        view.add_regions('ocaml-underlines-errors', underlines, 'ocaml-underlines-errors', 'dot', flag)
+        view.add_regions('ocaml-underlines-errors', underlines, 'invalid', 'dot', flag)
 
     @only_ocaml
     def on_selection_modified(self, view):
