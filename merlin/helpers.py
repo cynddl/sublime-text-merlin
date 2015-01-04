@@ -59,9 +59,10 @@ def merlin_pos(view, pos):
 
     return view.text_point(pos['line'] - 1, pos['col'])
 
+
 def clean_whitespace(text):
     """
     Replace sequence of whitespaces by a single space
     """
 
-    return ' '.join(text.split()) # yes, it's a feature, HAHAHA
+    return ' '.join(text.split())

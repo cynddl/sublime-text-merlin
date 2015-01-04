@@ -30,6 +30,7 @@ class MerlinException(MerlinExc):
     """ Standard exception. """
     pass
 
+
 class MerlinProcess(object):
     """
     This class launches a merlin process and send/receive commands to
@@ -119,7 +120,7 @@ class MerlinProcess(object):
             self.find_use("ocamlbuild")
         return r
 
-    def _parse_cursor(self,result):
+    def _parse_cursor(self, result):
         """ Parser cursor values returned by merlin. """
         position = result['cursor']
         marker = result['marker']
@@ -148,14 +149,14 @@ class MerlinProcess(object):
 
     def seek_start(self):
         """ Reset cursor to the beginning of the file. """
-        return self.send_cursor_command("seek","before",{'line': 1, 'col': 0})
+        return self.send_cursor_command("seek", "before", {'line': 1, 'col': 0})
 
     def seek_marker(self):
         """
         After satisfaying a tell marker, place the cursor immediately after the
         marker.
         """
-        return self.send_cursor_command("seek","marker")
+        return self.send_cursor_command("seek", "marker")
 
     def complete_cursor(self, base, line, col):
         """ Return possible completions at the current cursor position. """
@@ -176,7 +177,7 @@ class MerlinProcess(object):
         """ Find and load external modules. """
         return self.send_command('find', 'use', packages)
 
-    def project():
+    def project(self):
         """
         Returns a tuple
           (dot_merlins, failures)
@@ -218,20 +219,26 @@ class MerlinProcess(object):
     # Path management
     def add_build_path(self, path):
         return self.send_command("path", "add", "build", path)
+
     def add_source_path(self, path):
         return self.send_command("path", "add", "source", path)
+
     def remove_build_path(self, path):
         return self.send_command("path", "remove", "build", path)
+
     def remove_source_path(self, path):
         return self.send_command("path", "remove", "source", path)
+
     def list_build_path(self):
         return self.send_command("path", "list", "build")
+
     def list_source_path(self):
         return self.send_command("path", "list", "source")
 
     # File selection
     def which_path(self, names):
         return self.send_command("which", "path", names)
+
     def which_with_ext(self, extensions):
         return self.send_command("which", "with_ext", extensions)
 
@@ -242,16 +249,16 @@ class MerlinProcess(object):
 
     # Extensions management
     def extension_list(self, crit=None):
-        if crit: # "enabled" | "disabled"
-            return self.send_command("extension","list",crit)
+        if crit in ['enabled', 'disabled']:
+            return self.send_command("extension", "list", crit)
         else:
-            return self.send_command("extension","list")
+            return self.send_command("extension", "list")
 
     def extension_enable(self, exts):
-        self.send_command("extension","enable",exts)
+        self.send_command("extension", "enable", exts)
 
     def extension_disable(self, exts):
-        self.send_command("extension","disable",exts)
+        self.send_command("extension", "disable", exts)
 
     def locate(self, line, col, ident="", kind="mli"):
         if line is None or col is None:

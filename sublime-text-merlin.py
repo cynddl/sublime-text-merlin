@@ -2,7 +2,6 @@
 This module allows you to analyse OCaml source code, autocomplete and infer types while writing
 """
 
-import subprocess
 import functools
 import sublime
 import sublime_plugin
@@ -11,13 +10,15 @@ import os
 import sys
 
 if sys.version_info < (3, 0):
-    from merlin.process import MerlinProcess, merlin_bin
+    from merlin.process import MerlinProcess
     from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 else:
-    from .merlin.process import MerlinProcess, merlin_bin
+    from .merlin.process import MerlinProcess
     from .merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 
 running_process = None
+
+
 def merlin_process(name):
     global running_process
     if running_process is None:
@@ -38,8 +39,8 @@ class MerlinLoadPackage(sublime_plugin.WindowCommand):
         self.window.show_quick_panel(self.modules, self.on_done)
 
     def on_done(self, index):
-        if index == -1: return
-        self.process.find_use(self.modules[index])
+        if index != -1:
+            self.process.find_use(self.modules[index])
 
 
 class MerlinAddBuildPath(sublime_plugin.WindowCommand):
@@ -97,8 +98,8 @@ class MerlinRemoveBuildPath(sublime_plugin.WindowCommand):
         self.window.show_quick_panel(self.directories, self.on_done)
 
     def on_done(self, index):
-        if index == -1: return
-        self.process.remove_build_path(self.directories[index])
+        if index != -1:
+            self.process.remove_build_path(self.directories[index])
 
 
 class MerlinRemoveSourcePath(sublime_plugin.WindowCommand):
@@ -114,8 +115,8 @@ class MerlinRemoveSourcePath(sublime_plugin.WindowCommand):
         self.window.show_quick_panel(self.directories, self.on_done)
 
     def on_done(self, index):
-        if index == -1: return
-        self.process.remove_source_path(self.directories[index])
+        if index != -1:
+            self.process.remove_source_path(self.directories[index])
 
 
 class MerlinEnableExtension(sublime_plugin.WindowCommand):
@@ -131,8 +132,8 @@ class MerlinEnableExtension(sublime_plugin.WindowCommand):
         self.window.show_quick_panel(self.extensions, self.on_done)
 
     def on_done(self, index):
-        if index == -1: return
-        self.process.extension_enable([self.extensions[index]])
+        if index != -1:
+            self.process.extension_enable([self.extensions[index]])
 
 
 class MerlinDisableExtension(sublime_plugin.WindowCommand):
@@ -148,8 +149,8 @@ class MerlinDisableExtension(sublime_plugin.WindowCommand):
         self.window.show_quick_panel(self.extensions, self.on_done)
 
     def on_done(self, index):
-        if index == -1: return
-        self.process.extension_disable([self.extensions[index]])
+        if index != -1:
+            self.process.extension_disable([self.extensions[index]])
 
 
 class MerlinTypeEnclosing:
@@ -157,7 +158,7 @@ class MerlinTypeEnclosing:
     Return type information around cursor.
     """
 
-    def __init__(self,view):
+    def __init__(self, view):
         process = merlin_process(view.file_name())
         process.sync_buffer_to_cursor(view)
 
@@ -180,8 +181,10 @@ class MerlinTypeEnclosing:
 
     def _item_format(self, item):
         text = item['type']
-        if item['tail'] == 'position': text = text + " (*tail-position*)"
-        if item['tail'] == 'call': text = text + " (*tail-call*)"
+        if item['tail'] == 'position':
+            text += " (*tail-position*)"
+        if item['tail'] == 'call':
+            text += " (*tail-call*)"
         return clean_whitespace(text)
 
     def _items(self):
@@ -199,6 +202,7 @@ class MerlinTypeEnclosing:
             sel.clear()
             sel.add(self._item_region(self.enclosing[index]))
 
+
 class MerlinTypeCommand(sublime_plugin.WindowCommand):
     """
     Return type information around cursor.
@@ -207,6 +211,7 @@ class MerlinTypeCommand(sublime_plugin.WindowCommand):
         enclosing = MerlinTypeEnclosing(self.view)
         enclosing.show_panel()
 
+
 class MerlinTypeMenu(sublime_plugin.TextCommand):
     """
     Display type information in context menu
@@ -214,6 +219,7 @@ class MerlinTypeMenu(sublime_plugin.TextCommand):
     def run(self, edit):
         enclosing = MerlinTypeEnclosing(self.view)
         enclosing.show_menu()
+
 
 def merlin_locate_result(result, window):
     if isinstance(result, dict):
@@ -226,10 +232,11 @@ def merlin_locate_result(result, window):
             sel = view.sel()
             sel.clear()
             pos = merlin_pos(view, pos)
-            sel.add(sublime.Region(pos,pos))
+            sel.add(sublime.Region(pos, pos))
             view.show_at_center(pos)
     else:
         sublime.message_dialog(result)
+
 
 class MerlinLocateMli(sublime_plugin.WindowCommand):
     """
@@ -256,7 +263,7 @@ class MerlinLocateNameMli(sublime_plugin.WindowCommand):
         self.window.show_input_panel("Enter name", "", self.on_done, None, None)
 
     def kind(self):
-      return "mli"
+        return "mli"
 
     def on_done(self, name):
         view = self.window.active_view()
@@ -267,13 +274,16 @@ class MerlinLocateNameMli(sublime_plugin.WindowCommand):
         line, col = view.rowcol(pos[0].begin())
         merlin_locate_result(process.locate(line + 1, col, ident=name), self.window)
 
+
 class MerlinLocateMl(MerlinLocateMli):
     def kind(self):
         return "ml"
 
+
 class MerlinLocateNameMl(MerlinLocateNameMli):
     def kind(self):
         return "ml"
+
 
 class MerlinWhich(sublime_plugin.WindowCommand):
     """
@@ -291,10 +301,10 @@ class MerlinWhich(sublime_plugin.WindowCommand):
         self.window.show_quick_panel(self.files, self.on_done)
 
     def on_done(self, index):
-        if index == -1: return
-        module_name = self.files[index]
-        modules = map(lambda ext: module_name + ext, self.extensions())
-        self.window.open_file(self.process.which_path(list(modules)))
+        if index != -1:
+            module_name = self.files[index]
+            modules = map(lambda ext: module_name + ext, self.extensions())
+            self.window.open_file(self.process.which_path(list(modules)))
 
 
 class MerlinFindMl(MerlinWhich):
@@ -303,7 +313,7 @@ class MerlinFindMl(MerlinWhich):
     """
 
     def extensions(self):
-        return [".ml",".mli"]
+        return [".ml", ".mli"]
 
 
 class MerlinFindMli(MerlinWhich):
@@ -312,7 +322,7 @@ class MerlinFindMli(MerlinWhich):
     """
 
     def extensions(self):
-        return [".mli",".ml"]
+        return [".mli", ".ml"]
 
 
 class Autocomplete(sublime_plugin.EventListener):
@@ -427,19 +437,20 @@ class MerlinBuffer(sublime_plugin.EventListener):
         underlines = []
 
         for e in errors:
-            pos_start = e['start']
-            pos_stop = e['end']
-            pnt_start = merlin_pos(view, pos_start)
-            pnt_stop = merlin_pos(view, pos_stop)
-            r = sublime.Region(pnt_start, pnt_stop)
-            line_r = view.full_line(r)
-            line_r = sublime.Region(line_r.a - 1, line_r.b)
-            underlines.append(r)
+            if 'start' in e and 'end' in e:
+                pos_start = e['start']
+                pos_stop = e['end']
+                pnt_start = merlin_pos(view, pos_start)
+                pnt_stop = merlin_pos(view, pos_stop)
+                r = sublime.Region(pnt_start, pnt_stop)
+                line_r = view.full_line(r)
+                line_r = sublime.Region(line_r.a - 1, line_r.b)
+                underlines.append(r)
 
-            # Remove line and character number
-            message = e['message']
+                # Remove line and character number
+                message = e['message']
 
-            error_messages.append((line_r, message))
+                error_messages.append((line_r, message))
 
         self.error_messages = error_messages
         flag = sublime.DRAW_OUTLINED

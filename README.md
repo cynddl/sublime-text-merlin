@@ -6,7 +6,7 @@ This plugin for Sublime Text 3 allows you to analyse OCaml source code, autocomp
 
 ## Installation
 
-First of all, be sure to have [merlin](https://github.com/the-lambda-church/merlin) installed.
+First of all, be sure to have [merlin](https://github.com/the-lambda-church/merlin) installed. The current supported version of merlin is 2.0.
 
 The shorter way of doing this is with [opam](opam.ocaml.org), an OCaml package manager:
 
@@ -20,7 +20,7 @@ For the moment (during development), sublime-text-merlin is not listed in the Pa
 
 ## Work in Progress
 
-This is an initial port of the vim plugin of merlin. Buffers can be synchronised with merlin, but any edit need a full refresh between ST and merlin. Projects are not supported.
+This is an initial port of the vim plugin of merlin. Buffers can be synchronised with merlin, but any edit needs a full refresh between ST and merlin. Projects are not supported.
 
 If you want to use fully merlin with Sublime Text, fork this repository.
 
