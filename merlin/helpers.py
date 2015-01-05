@@ -44,7 +44,6 @@ def only_ocaml(func):
 
     @functools.wraps(func)
     def wrapper(self, view, *args, **kwargs):
-
         if is_ocaml(view):
             return func(self, view, *args, **kwargs)
 

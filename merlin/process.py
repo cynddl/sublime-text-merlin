@@ -63,9 +63,9 @@ class MerlinProcess(object):
                 stdout=subprocess.PIPE,
                 stderr=None,
             )
-        except OSError as e:
-            print("Failed starting ocamlmerlin. Please ensure that ocamlmerlin \
-                   binary is executable.")
+        except (OSError, FileNotFoundError) as e:
+            print("Failed starting ocamlmerlin. Please ensure that ocamlmerlin"
+                  "binary is executable.")
             raise e
 
     def send_command(self, *cmd):
