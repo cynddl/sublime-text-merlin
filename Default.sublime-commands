@@ -54,5 +54,19 @@
     {
         "caption": "Merlin: Locate definition by name (to .mli)",
         "command": "merlin_locate_name_mli"
+    },
+    {
+        "caption": "Preferences: Merlin Settings – Default",
+        "command": "open_file",
+        "args": {
+            "file": "${packages}/Merlin/Merlin.sublime-settings"
+        }
+    },
+    {
+        "caption": "Preferences: Merlin Settings – User",
+        "command": "open_file",
+        "args": {
+            "file": "${packages}/User/Merlin.sublime-settings"
+        }
     }
 ]
