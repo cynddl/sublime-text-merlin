@@ -10,10 +10,10 @@ First of all, be sure to have [merlin](https://github.com/the-lambda-church/merl
 
     opam install merlin
 
-Next, install the ‘Merlin’ package using **Package Control** 
+Next, install the ‘Merlin’ package using **Package Control**
 or clone this repository in your *Packages* folder:
 
-    git clone https://github.com/cynddl/sublime-text-merlin.git
+    git clone https://github.com/cynddl/sublime-text-merlin.git Merlin
 
 ## Work in Progress
 

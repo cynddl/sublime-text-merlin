@@ -386,6 +386,50 @@ class Autocomplete(sublime_plugin.EventListener):
             'auto_complete_commit_on_tab': True,
         })
 
+# Error panel stuff derived from SublimeClang under zlib license;
+# see https://github.com/quarnster/SublimeClang#license.
+class MerlinErrorPanelFlush(sublime_plugin.TextCommand):
+    def run(self, edit, data):
+        self.view.erase(edit, sublime.Region(0, self.view.size()))
+        self.view.insert(edit, 0, data)
+
+class MerlinErrorPanel(object):
+    def __init__(self):
+        self.view = None
+        self.data = ""
+
+    def set_data(self, data):
+        self.data = data
+        if self.is_visible():
+            self.flush()
+
+    def is_visible(self, window=None):
+        ret = self.view != None and self.view.window() != None
+        if ret and window:
+            ret = self.view.window().id() == window.id()
+        return ret
+
+    def flush(self):
+        self.view.set_read_only(False)
+        self.view.set_scratch(True)
+        self.view.run_command("merlin_error_panel_flush", {"data": self.data})
+        self.view.set_read_only(True)
+
+    def open(self, window=None):
+        if window == None:
+            window = sublime.active_window()
+        if not self.is_visible(window):
+            self.view = window.get_output_panel("merlin")
+            self.view.settings().set("result_file_regex", "^(.+):([0-9]+):([0-9]+)")
+            #self.view.set_syntax_file(fileName)
+        self.flush()
+
+        window.run_command("show_panel", {"panel": "output.merlin"})
+
+    def close(self):
+        sublime.active_window().run_command("hide_panel", {"panel": "output.merlin"})
+
+merlin_error_panel = MerlinErrorPanel()
 
 class MerlinBuffer(sublime_plugin.EventListener):
     """
@@ -417,12 +461,29 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
 
         self.process(view).sync_buffer(view)  # Dummy sync with the whole file
-        self.display_to_status_bar(view)
+        self.display_in_error_panel(view)
         self.show_errors(view)
 
     @only_ocaml
     def on_modified(self, view):
         view.erase_regions('ocaml-underlines-errors')
+
+    def gutter_icon_path(self):
+        try:
+            resource = sublime.load_binary_resource("gutter-icon.png")
+
+            cache_path = os.path.join(sublime.cache_path(), "Merlin", "gutter-icon.png")
+            if not os.path.isfile(cache_path):
+                if not os.path.isdir(os.path.dirname(cache_path)):
+                    os.makedirs(os.path.dirname(cache_path))
+                f = open(cache_path, "wb")
+                f.write(resource)
+                f.close()
+
+            return "Cache/Merlin/gutter-icon.png"
+
+        except IOError:
+            return "Packages/Merlin/gutter-icon.png"
 
     def show_errors(self, view):
         """
@@ -455,13 +516,13 @@ class MerlinBuffer(sublime_plugin.EventListener):
         self.error_messages = error_messages
         flag = sublime.DRAW_OUTLINED
         # add_regions(key, regions, scope, icon, flags)
-        view.add_regions('ocaml-underlines-errors', underlines, 'invalid', 'dot', flag)
+        view.add_regions('ocaml-underlines-errors', underlines, 'invalid', self.gutter_icon_path(), flag)
 
     @only_ocaml
     def on_selection_modified(self, view):
-        self.display_to_status_bar(view)
+        self.display_in_error_panel(view)
 
-    def display_to_status_bar(self, view):
+    def display_in_error_panel(self, view):
         """
         Display error message to the status bar when the selection intersects
         with errors in the current view.
@@ -471,6 +532,5 @@ class MerlinBuffer(sublime_plugin.EventListener):
 
         for message_region, message_text in self.error_messages:
             if message_region.intersects(caret_region):
-                sublime.status_message(message_text)
-            else:
-                sublime.status_message('')
+                merlin_error_panel.open()
+                merlin_error_panel.set_data(message_text)
