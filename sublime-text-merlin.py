@@ -424,6 +424,23 @@ class MerlinBuffer(sublime_plugin.EventListener):
     def on_modified(self, view):
         view.erase_regions('ocaml-underlines-errors')
 
+    def gutter_icon_path(self):
+        try:
+            resource = sublime.load_binary_resource("gutter-icon.png")
+
+            cache_path = os.path.join(sublime.cache_path(), "Merlin", "gutter-icon.png")
+            if not os.path.isfile(cache_path):
+                if not os.path.isdir(os.path.dirname(cache_path)):
+                    os.makedirs(os.path.dirname(cache_path))
+                f = open(cache_path, "wb")
+                f.write(resource)
+                f.close()
+
+            return "Cache/Merlin/gutter-icon.png"
+
+        except IOError:
+            return "Packages/Merlin/gutter-icon.png"
+
     def show_errors(self, view):
         """
         Show a simple gutter icon for each parsing error.
@@ -455,7 +472,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         self.error_messages = error_messages
         flag = sublime.DRAW_OUTLINED
         # add_regions(key, regions, scope, icon, flags)
-        view.add_regions('ocaml-underlines-errors', underlines, 'invalid', 'dot', flag)
+        view.add_regions('ocaml-underlines-errors', underlines, 'invalid', self.gutter_icon_path(), flag)
 
     @only_ocaml
     def on_selection_modified(self, view):
