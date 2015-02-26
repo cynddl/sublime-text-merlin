@@ -1,5 +1,6 @@
 """
-This module allows you to analyse OCaml source code, autocomplete and infer types while writing
+This module allows you to analyse OCaml source code, autocomplete,
+and infer types while writing.
 """
 
 import functools
@@ -386,12 +387,14 @@ class Autocomplete(sublime_plugin.EventListener):
             'auto_complete_commit_on_tab': True,
         })
 
+
 # Error panel stuff derived from SublimeClang under zlib license;
 # see https://github.com/quarnster/SublimeClang#license.
 class MerlinErrorPanelFlush(sublime_plugin.TextCommand):
     def run(self, edit, data):
         self.view.erase(edit, sublime.Region(0, self.view.size()))
         self.view.insert(edit, 0, data)
+
 
 class MerlinErrorPanel(object):
     def __init__(self):
@@ -404,7 +407,7 @@ class MerlinErrorPanel(object):
             self.flush()
 
     def is_visible(self, window=None):
-        ret = self.view != None and self.view.window() != None
+        ret = (self.view is not None) and (self.view.window() is not None)
         if ret and window:
             ret = self.view.window().id() == window.id()
         return ret
@@ -416,20 +419,22 @@ class MerlinErrorPanel(object):
         self.view.set_read_only(True)
 
     def open(self, window=None):
-        if window == None:
+        if window is None:
             window = sublime.active_window()
         if not self.is_visible(window):
             self.view = window.get_output_panel("merlin")
             self.view.settings().set("result_file_regex", "^(.+):([0-9]+):([0-9]+)")
-            #self.view.set_syntax_file(fileName)
         self.flush()
 
         window.run_command("show_panel", {"panel": "output.merlin"})
 
     def close(self):
-        sublime.active_window().run_command("hide_panel", {"panel": "output.merlin"})
+        sublime.active_window().run_command("hide_panel", {
+            "panel": "output.merlin"
+        })
 
 merlin_error_panel = MerlinErrorPanel()
+
 
 class MerlinBuffer(sublime_plugin.EventListener):
     """
@@ -446,14 +451,6 @@ class MerlinBuffer(sublime_plugin.EventListener):
             self._process = merlin_process(view.file_name())
         return self._process
 
-    #@only_ocaml
-    #def on_activated(self, view):
-    #    """
-    #    Create a Merlin process if necessary and load imported modules.
-    #    """
-
-    #    self.show_errors(view)
-
     @only_ocaml
     def on_post_save(self, view):
         """
@@ -468,22 +465,27 @@ class MerlinBuffer(sublime_plugin.EventListener):
     def on_modified(self, view):
         view.erase_regions('ocaml-underlines-errors')
 
+    def _plugin_dir(self):
+        path = os.path.realpath(__file__)
+        root = os.path.split(os.path.dirname(path))[1]
+        return os.path.splitext(root)[0]
+
     def gutter_icon_path(self):
         try:
             resource = sublime.load_binary_resource("gutter-icon.png")
+            cache_path = os.path.join(sublime.cache_path(), "Merlin",
+                                      "gutter-icon.png")
 
-            cache_path = os.path.join(sublime.cache_path(), "Merlin", "gutter-icon.png")
             if not os.path.isfile(cache_path):
                 if not os.path.isdir(os.path.dirname(cache_path)):
                     os.makedirs(os.path.dirname(cache_path))
-                f = open(cache_path, "wb")
-                f.write(resource)
-                f.close()
+                with open(cache_path, "wb") as f:
+                    f.write(resource)
 
             return "Cache/Merlin/gutter-icon.png"
 
         except IOError:
-            return "Packages/Merlin/gutter-icon.png"
+            return "Packages/" + self._plugin_dir() + "/gutter-icon.png"
 
     def show_errors(self, view):
         """
@@ -516,7 +518,8 @@ class MerlinBuffer(sublime_plugin.EventListener):
         self.error_messages = error_messages
         flag = sublime.DRAW_OUTLINED
         # add_regions(key, regions, scope, icon, flags)
-        view.add_regions('ocaml-underlines-errors', underlines, 'invalid', self.gutter_icon_path(), flag)
+        view.add_regions('ocaml-underlines-errors', underlines, 'invalid',
+                         self.gutter_icon_path(), flag)
 
     @only_ocaml
     def on_selection_modified(self, view):

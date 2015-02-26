@@ -264,4 +264,7 @@ class MerlinProcess(object):
         if line is None or col is None:
             return self.send_command("locate", ident, kind)
         else:
-            return self.send_command("locate", ident, kind, "at", {'line': line, 'col': col})
+            return self.send_command("locate", ident, kind, "at", {
+                'line': line,
+                'col': col
+            })
