@@ -20,11 +20,11 @@
         "command": "merlin_remove_source_path"
     },
     {
-        "caption": "Merlin: Find ML file",
+        "caption": "Merlin: Find .ml file",
         "command": "merlin_find_ml"
     },
     {
-        "caption": "Merlin: Find MLI file",
+        "caption": "Merlin: Find .mli file",
         "command": "merlin_find_mli"
     },
     {
