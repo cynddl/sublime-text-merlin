@@ -161,7 +161,10 @@ class MerlinProcess(object):
     def complete_cursor(self, base, line, col):
         """ Return possible completions at the current cursor position. """
         pos = {'line': line, 'col': col}
-        return self.send_command("complete", "prefix", base, "at", pos)
+        result = self.send_command("complete", "prefix", base, "at", pos)
+        if not isinstance(result, dict):
+            result = {'entries':result, 'context':None}
+        return result
 
     def report_errors(self):
         """
