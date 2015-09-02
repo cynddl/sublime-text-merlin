@@ -364,7 +364,12 @@ class Autocomplete(sublime_plugin.EventListener):
             self.cplns_ready = False
             line, col = view.rowcol(locations[0])
             result = process.complete_cursor(prefix, line + 1, col)
-            self.cplns = [(clean_whitespace(r['name'] + '\t' + r['desc']), r['name']) for r in result['entries']]
+
+            self.cplns = []
+            for r in result['entries']:
+                name = clean_whitespace(r['name'])
+                desc = clean_whitespace(r['desc'])
+                self.cplns.append(((name + '\t' + desc), name))
 
             self.show_completions(view, self.cplns)
 
