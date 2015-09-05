@@ -12,10 +12,10 @@ import sys
 
 if sys.version_info < (3, 0):
     from merlin.process import MerlinProcess
-    from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
+    from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace, make_snippet
 else:
     from .merlin.process import MerlinProcess
-    from .merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
+    from .merlin.helpers import merlin_pos, only_ocaml, clean_whitespace, make_snippet
 
 running_process = None
 
@@ -369,7 +369,7 @@ class Autocomplete(sublime_plugin.EventListener):
             for r in result['entries']:
                 name = clean_whitespace(r['name'])
                 desc = clean_whitespace(r['desc'])
-                self.cplns.append(((name + '\t' + desc), name))
+                self.cplns.append(((name + '\t' + desc), make_snippet(name, desc)))
 
             self.show_completions(view, self.cplns)
 

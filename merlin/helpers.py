@@ -65,3 +65,22 @@ def clean_whitespace(text):
     """
 
     return ' '.join(text.split())
+
+
+def make_snippet(name, desc):
+    """
+    Converts name and desc provided by merlin autocomplete to
+    a Sublime Text snippet
+    """
+    snippet = name
+
+    # TODO: Need a better way of splitting params, "->"
+    # can appear inside function type args, e.g. in List.map
+    args = []
+    for idx, name in enumerate(desc.split(' -> ')[:-1]):
+        args.append('${%s:%s}' % (idx + 1, name))
+
+    if args:
+        snippet += ' ' + ' '.join(args)
+
+    return snippet
