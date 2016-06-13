@@ -68,7 +68,7 @@ class MerlinProcess(object):
                   "binary is executable.")
             raise e
 
-    def send_command(self, *cmd):
+    def send_command(self, cmd):
         """
         Send a command to merlin and wait to return the results.
         Raise an exception if merlin returned an error message.
@@ -94,74 +94,24 @@ class MerlinProcess(object):
         elif result[0] == "exception":
             raise MerlinException(content)
 
-    def reload(self):
-        """ Detect and reload .cmi files that may have changed. """
-        return self.send_command("refresh")
+class MerlinView(object):
+    """
+    This class wraps commands local to a view/buffer
+    """
 
-    def acquire(self, name):
-        """
-        Make sure that the process is working on buffer with the specified name.
-        """
-        if self.name != name:
-            self.name = name
-            self.reset(name=name)
-        return self
+    def __init__(self, process, view):
+        self.process = process
+        self.view = view
 
-    def reset(self, kind="auto", name=None):
-        """
-        Clear buffer content on merlin side, initialize parser for file of kind
-        'ml' or 'mli'.
-        """
-        if name:
-            r = self.send_command("reset", kind, name)
-        else:
-            r = self.send_command("reset", kind)
-        if name == "myocamlbuild.ml":
-            self.find_use("ocamlbuild")
-        return r
-
-    def _parse_cursor(self, result):
-        """ Parser cursor values returned by merlin. """
-        position = result['cursor']
-        marker = result['marker']
-        return (position['line'], position['col'], marker)
-
-    def send_cursor_command(self, *cmd):
-        """ Generic method for commands returning cursor position. """
-        return self._parse_cursor(self.send_command(*cmd))
-
-    def tell_start(self):
-        """ Prepare merlin to receive new input. """
-        return self.send_cursor_command("tell", "start")
-
-    def tell_marker(self):
-        """ Put marker at current point. """
-        return self.send_cursor_command("tell", "marker")
-
-    def tell_source(self, content):
-        """ Send content for the current buffer. """
-        if content is None:
-            return self.send_cursor_command("tell", "eof")
-        elif type(content) is list:
-            return self.send_cursor_command("tell", "source", "\n".join(content) + "\n")
-        else:
-            return self.send_cursor_command("tell", "source", content)
-
-    def seek_start(self):
-        """ Reset cursor to the beginning of the file. """
-        return self.send_cursor_command("seek", "before", {'line': 1, 'col': 0})
-
-    def seek_marker(self):
-        """
-        After satisfaying a tell marker, place the cursor immediately after the
-        marker.
-        """
-        return self.send_cursor_command("seek", "marker")
+    def send_query(self, *query):
+        document = ["auto",self.view.file_name()]
+        command = {'assoc': None, 'document': document, 'query': query}
+        return self.process.send_command(command)
 
     def complete_cursor(self, base, line, col):
         """ Return possible completions at the current cursor position. """
         pos = {'line': line, 'col': col}
-        result = self.send_command("complete", "prefix", base, "at", pos)
+        result = self.send_query("complete", "prefix", base, "at", pos)
         if not isinstance(result, dict):
             result = {'entries':result, 'context':None}
         return result
@@ -170,15 +120,15 @@ class MerlinProcess(object):
         """
         Return all errors detected by merlin while parsing the current file.
         """
-        return self.send_command("errors")
+        return self.send_query("errors")
 
     def find_list(self):
         """ List all possible external modules to load. """
-        return self.send_command('find', 'list')
+        return self.send_query('find', 'list')
 
     def find_use(self, *packages):
         """ Find and load external modules. """
-        return self.send_command('find', 'use', packages)
+        return self.send_query('find', 'use', packages)
 
     def project(self):
         """
@@ -187,87 +137,64 @@ class MerlinProcess(object):
         where dot_merlins is a list of loaded .merlin files
           and failures is the list of errors which occured during loading
         """
-        result = self.send_command("project", "get")
+        result = self.send_query("project", "get")
         return (result['result'], result['failures'])
 
-    def sync_buffer_to(self, view, cursor):
+    def sync(self):
         """ Synchronize the buffer up to specified position.  """
 
-        end = view.size()
-        content = sublime.Region(0, cursor)
-
-        self.seek_start()
-        self.tell_start()
-        self.tell_source(view.substr(content))
-
-        _, _, marker = self.tell_marker()
-        while marker and cursor < end:
-            next_cursor = min(cursor + 1024, end)
-            content = sublime.Region(cursor, next_cursor)
-            _, _, marker = self.tell_source(view.substr(content))
-            cursor = next_cursor
-        if marker:
-            self.tell_source(None)
-        else:
-            self.seek_marker()
-
-    def sync_buffer_to_cursor(self, view):
-        """ Synchronize the buffer up to user cursor.  """
-        return self.sync_buffer_to(view, view.sel()[-1].end())
-
-    def sync_buffer(self, view):
-        """ Synchronize the whole buffer.  """
-        self.sync_buffer_to(view, view.size())
+        text = self.view.substr(sublime.Region(0, self.view.size()))
+        return self.send_query("tell", "start", "end", text)
 
     # Path management
     def add_build_path(self, path):
-        return self.send_command("path", "add", "build", path)
+        return self.send_query("path", "add", "build", path)
 
     def add_source_path(self, path):
-        return self.send_command("path", "add", "source", path)
+        return self.send_query("path", "add", "source", path)
 
     def remove_build_path(self, path):
-        return self.send_command("path", "remove", "build", path)
+        return self.send_query("path", "remove", "build", path)
 
     def remove_source_path(self, path):
-        return self.send_command("path", "remove", "source", path)
+        return self.send_query("path", "remove", "source", path)
 
     def list_build_path(self):
-        return self.send_command("path", "list", "build")
+        return self.send_query("path", "list", "build")
 
     def list_source_path(self):
-        return self.send_command("path", "list", "source")
+        return self.send_query("path", "list", "source")
 
     # File selection
     def which_path(self, names):
-        return self.send_command("which", "path", names)
+        return self.send_query("which", "path", names)
 
     def which_with_ext(self, extensions):
-        return self.send_command("which", "with_ext", extensions)
+        return self.send_query("which", "with_ext", extensions)
 
     # Type information
     def type_enclosing(self, line, col):
         pos = {'line': line, 'col': col}
-        return self.send_command("type", "enclosing", "at", pos)
+        return self.send_query("type", "enclosing", "at", pos)
 
     # Extensions management
     def extension_list(self, crit=None):
         if crit in ['enabled', 'disabled']:
-            return self.send_command("extension", "list", crit)
+            return self.send_query("extension", "list", crit)
         else:
-            return self.send_command("extension", "list")
+            return self.send_query("extension", "list")
 
     def extension_enable(self, exts):
-        self.send_command("extension", "enable", exts)
+        self.send_query("extension", "enable", exts)
 
     def extension_disable(self, exts):
-        self.send_command("extension", "disable", exts)
+        self.send_query("extension", "disable", exts)
 
     def locate(self, line, col, ident="", kind="mli"):
         if line is None or col is None:
-            return self.send_command("locate", ident, kind)
+            return self.send_query("locate", ident, kind)
         else:
-            return self.send_command("locate", ident, kind, "at", {
+            return self.send_query("locate", ident, kind, "at", {
                 'line': line,
                 'col': col
             })

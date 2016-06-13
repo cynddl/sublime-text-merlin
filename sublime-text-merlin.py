@@ -11,21 +11,23 @@ import os
 import sys
 
 if sys.version_info < (3, 0):
-    from merlin.process import MerlinProcess
+    from merlin.process import MerlinProcess, MerlinView
     from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 else:
-    from .merlin.process import MerlinProcess
+    from .merlin.process import MerlinProcess, MerlinView
     from .merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 
 running_process = None
 
 
-def merlin_process(name):
+def merlin_process():
     global running_process
     if running_process is None:
         running_process = MerlinProcess()
-    return running_process.acquire(name)
+    return running_process
 
+def merlin_view(view):
+    return MerlinView(merlin_process(), view)
 
 class MerlinLoadPackage(sublime_plugin.WindowCommand):
     """
@@ -34,14 +36,14 @@ class MerlinLoadPackage(sublime_plugin.WindowCommand):
 
     def run(self):
         view = self.window.active_view()
-        self.process = merlin_process(view.file_name())
+        self.merlin = merlin_view(view)
 
-        self.modules = self.process.find_list()
+        self.modules = self.merlin.find_list()
         self.window.show_quick_panel(self.modules, self.on_done)
 
     def on_done(self, index):
         if index != -1:
-            self.process.find_use(self.modules[index])
+            self.merlin.find_use(self.modules[index])
 
 
 class MerlinAddBuildPath(sublime_plugin.WindowCommand):
@@ -52,7 +54,7 @@ class MerlinAddBuildPath(sublime_plugin.WindowCommand):
     def run(self):
         view = self.window.active_view()
         file_name = view.file_name()
-        self.process = merlin_process(file_name)
+        self.merlin = merlin_view(view)
 
         if file_name:
             wd = os.path.dirname(os.path.abspath(file_name))
@@ -62,7 +64,7 @@ class MerlinAddBuildPath(sublime_plugin.WindowCommand):
         self.window.show_input_panel("Add build path", wd, self.on_done, None, None)
 
     def on_done(self, directory):
-        self.process.add_build_path(directory)
+        self.merlin.add_build_path(directory)
 
 
 class MerlinAddSourcePath(sublime_plugin.WindowCommand):
@@ -72,8 +74,8 @@ class MerlinAddSourcePath(sublime_plugin.WindowCommand):
 
     def run(self):
         view = self.window.active_view()
+        self.merlin = merlin_view(view)
         file_name = view.file_name()
-        self.process = merlin_process(file_name)
 
         if file_name:
             wd = os.path.dirname(os.path.abspath(file_name))
@@ -83,7 +85,7 @@ class MerlinAddSourcePath(sublime_plugin.WindowCommand):
         self.window.show_input_panel("Add source path", wd, self.on_done, None, None)
 
     def on_done(self, directory):
-        self.process.add_source_path(directory)
+        self.merlin.add_source_path(directory)
 
 
 class MerlinRemoveBuildPath(sublime_plugin.WindowCommand):
@@ -93,14 +95,14 @@ class MerlinRemoveBuildPath(sublime_plugin.WindowCommand):
 
     def run(self):
         view = self.window.active_view()
-        self.process = merlin_process(view.file_name())
+        self.merlin = merlin_view(view)
 
-        self.directories = self.process.list_build_path()
+        self.directories = self.merlin.list_build_path()
         self.window.show_quick_panel(self.directories, self.on_done)
 
     def on_done(self, index):
         if index != -1:
-            self.process.remove_build_path(self.directories[index])
+            self.merlin.remove_build_path(self.directories[index])
 
 
 class MerlinRemoveSourcePath(sublime_plugin.WindowCommand):
@@ -110,14 +112,14 @@ class MerlinRemoveSourcePath(sublime_plugin.WindowCommand):
 
     def run(self):
         view = self.window.active_view()
-        self.process = merlin_process(view.file_name())
+        self.merlin = merlin_view(view)
 
-        self.directories = self.process.list_source_path()
+        self.directories = self.merlin.list_source_path()
         self.window.show_quick_panel(self.directories, self.on_done)
 
     def on_done(self, index):
         if index != -1:
-            self.process.remove_source_path(self.directories[index])
+            self.merlin.remove_source_path(self.directories[index])
 
 
 class MerlinEnableExtension(sublime_plugin.WindowCommand):
@@ -127,14 +129,14 @@ class MerlinEnableExtension(sublime_plugin.WindowCommand):
 
     def run(self):
         view = self.window.active_view()
-        self.process = merlin_process(view.file_name())
+        self.merlin = merlin_view(view)
 
-        self.extensions = self.process.extension_list('disabled')
+        self.extensions = self.merlin.extension_list('disabled')
         self.window.show_quick_panel(self.extensions, self.on_done)
 
     def on_done(self, index):
         if index != -1:
-            self.process.extension_enable([self.extensions[index]])
+            self.merlin.extension_enable([self.extensions[index]])
 
 
 class MerlinDisableExtension(sublime_plugin.WindowCommand):
@@ -144,14 +146,14 @@ class MerlinDisableExtension(sublime_plugin.WindowCommand):
 
     def run(self):
         view = self.window.active_view()
-        self.process = merlin_process(view.file_name())
+        self.merlin = merlin_view(view)
 
-        self.extensions = self.process.extension_list('enabled')
+        self.extensions = self.merlin.extension_list('enabled')
         self.window.show_quick_panel(self.extensions, self.on_done)
 
     def on_done(self, index):
         if index != -1:
-            self.process.extension_disable([self.extensions[index]])
+            self.merlin.extension_disable([self.extensions[index]])
 
 
 class MerlinTypeEnclosing:
@@ -160,8 +162,8 @@ class MerlinTypeEnclosing:
     """
 
     def __init__(self, view):
-        process = merlin_process(view.file_name())
-        process.sync_buffer_to_cursor(view)
+        merlin = merlin_view(view)
+        merlin.sync()
 
         pos = view.sel()
         line, col = view.rowcol(pos[0].begin())
@@ -172,7 +174,7 @@ class MerlinTypeEnclosing:
         #   'tail': "no"|"position"|"call" // tailcall information
         #   'start', 'end': {'line': int, 'col': int}
         # }
-        self.enclosing = process.type_enclosing(line + 1, col)
+        self.enclosing = merlin.type_enclosing(line + 1, col)
         self.view = view
 
     def _item_region(self, item):
@@ -245,12 +247,12 @@ class MerlinLocateMli(sublime_plugin.WindowCommand):
     """
     def run(self):
         view = self.window.active_view()
-        process = merlin_process(view.file_name())
-        process.sync_buffer_to_cursor(view)
+        merlin = merlin_view(view)
+        merlin.sync()
 
         pos = view.sel()
         line, col = view.rowcol(pos[0].begin())
-        merlin_locate_result(process.locate(line + 1, col, kind=self.kind()), self.window)
+        merlin_locate_result(merlin.locate(line + 1, col, kind=self.kind()), self.window)
 
     def kind(self):
         return "mli"
@@ -268,12 +270,12 @@ class MerlinLocateNameMli(sublime_plugin.WindowCommand):
 
     def on_done(self, name):
         view = self.window.active_view()
-        process = merlin_process(view.file_name())
-        process.sync_buffer_to_cursor(view)
+        merlin = merlin_view(view)
+        merlin.sync()
 
         pos = view.sel()
         line, col = view.rowcol(pos[0].begin())
-        merlin_locate_result(process.locate(line + 1, col, ident=name), self.window)
+        merlin_locate_result(merlin.locate(line + 1, col, ident=name), self.window)
 
 
 class MerlinLocateMl(MerlinLocateMli):
@@ -296,16 +298,16 @@ class MerlinWhich(sublime_plugin.WindowCommand):
 
     def run(self):
         view = self.window.active_view()
-        self.process = merlin_process(view.file_name())
+        self.merlin = merlin_view(view)
 
-        self.files = self.process.which_with_ext(self.extensions())
+        self.files = self.merlin.which_with_ext(self.extensions())
         self.window.show_quick_panel(self.files, self.on_done)
 
     def on_done(self, index):
         if index != -1:
             module_name = self.files[index]
             modules = map(lambda ext: module_name + ext, self.extensions())
-            self.window.open_file(self.process.which_path(list(modules)))
+            self.window.open_file(self.merlin.which_path(list(modules)))
 
 
 class MerlinFindMl(MerlinWhich):
@@ -347,8 +349,8 @@ class Autocomplete(sublime_plugin.EventListener):
         except IndexError:
             prefix = ""
 
-        process = merlin_process(view.file_name())
-        process.sync_buffer_to_cursor(view)
+        merlin = merlin_view(view)
+        merlin.sync()
 
         default_return = ([], sublime.INHIBIT_WORD_COMPLETIONS)
 
@@ -363,7 +365,7 @@ class Autocomplete(sublime_plugin.EventListener):
         if self.cplns_ready is None:
             self.cplns_ready = False
             line, col = view.rowcol(locations[0])
-            result = process.complete_cursor(prefix, line + 1, col)
+            result = merlin.complete_cursor(prefix, line + 1, col)
 
             self.cplns = []
             for r in result['entries']:
@@ -448,13 +450,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
      - display errors in the gutter.
     """
 
-    _process = None
     error_messages = []
-
-    def process(self, view):
-        if not self._process:
-            self._process = merlin_process(view.file_name())
-        return self._process
 
     @only_ocaml
     def on_post_save(self, view):
@@ -462,7 +458,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         Sync the buffer with Merlin on each text edit.
         """
 
-        self.process(view).sync_buffer(view)  # Dummy sync with the whole file
+        merlin_view(view).sync()
         self.display_in_error_panel(view)
         self.show_errors(view)
 
@@ -499,7 +495,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
 
         view.erase_regions('ocaml-underlines-errors')
 
-        errors = self.process(view).report_errors()
+        errors = merlin_view(view).report_errors()
 
         error_messages = []
         underlines = []
