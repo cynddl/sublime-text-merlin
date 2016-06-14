@@ -5,6 +5,7 @@ import sublime
 
 from .helpers import merlin_bin
 
+main_protocol_version = 3
 
 class MerlinExc(Exception):
     """ Exception returned by merlin. """
@@ -37,6 +38,8 @@ class MerlinProcess(object):
     synchronise buffer, autocomplete...
     """
 
+    _protocol_version = 1
+
     def __init__(self):
         self.mainpipe = None
         self.name = None
@@ -63,10 +66,29 @@ class MerlinProcess(object):
                 stdout=subprocess.PIPE,
                 stderr=None,
             )
+
+            # Protocol version negotiation
+            try:
+                version = self.send_command(["protocol","version",main_protocol_version])
+                if not version['selected'] in [2,3]:
+                    print("Unsupported version of Merlin protocol, please update (plugin is %d, ocamlmerlin binary is %d)."
+                            % (main_protocol_version, version['selected']))
+                elif version['latest'] > main_protocol_version:
+                    print("Merlin plugin is outdated, consider updating (plugin is %d, latest is %d)."
+                            % (main_protocol_version, version['latest']))
+                self._protocol_version = version['selected']
+            except Exception as e:
+                print("Unsupported version of Merlin binary, please update (%s)." % e)
+                self._protocol_version = 1
         except (OSError, FileNotFoundError) as e:
             print("Failed starting ocamlmerlin. Please ensure that ocamlmerlin"
                   "binary is executable.")
             raise e
+
+    def protocol_version(self):
+        if self.mainpipe is None or self.mainpipe.returncode is not None:
+            self.restart()
+        return self._protocol_version
 
     def send_command(self, cmd):
         """
@@ -81,17 +103,25 @@ class MerlinProcess(object):
         self.mainpipe.stdin.flush()
         line = self.mainpipe.stdout.readline()
         result = json.loads(line.decode('utf-8'))
+        class_ = None
         content = None
-        if len(result) == 2:
-            content = result[1]
+        if isinstance(result, dict):
+            class_ = result['class']
+            content = result['value']
+            for msg in result['notifications']:
+                print("merlin: " + msg)
+        else:
+            class_ = result[0]
+            if len(result) == 2:
+                content = result[1]
 
-        if result[0] == "return":
+        if class_ == "return":
             return content
-        elif result[0] == "failure":
+        elif class_ == "failure":
             raise Failure(content)
-        elif result[0] == "error":
+        elif class_ == "error":
             raise Error(content)
-        elif result[0] == "exception":
+        elif class_ == "exception":
             raise MerlinException(content)
 
 class MerlinView(object):
@@ -104,9 +134,13 @@ class MerlinView(object):
         self.view = view
 
     def send_query(self, *query):
-        document = ["auto",self.view.file_name()]
-        command = {'assoc': None, 'document': document, 'query': query}
-        return self.process.send_command(command)
+        if self.process.protocol_version() == 1:
+            self.process.send_command(["reset","auto",self.view.file_name()])
+            return self.process.send_command(query)
+        else:
+            document = ["auto",self.view.file_name()]
+            command = {'assoc': None, 'document': document, 'query': query}
+            return self.process.send_command(command)
 
     def complete_cursor(self, base, line, col):
         """ Return possible completions at the current cursor position. """
@@ -142,9 +176,12 @@ class MerlinView(object):
 
     def sync(self):
         """ Synchronize the buffer up to specified position.  """
-
         text = self.view.substr(sublime.Region(0, self.view.size()))
-        return self.send_query("tell", "start", "end", text)
+        if self.process.protocol_version() == 1:
+            self.send_query("tell", "start", "at", {'line':0, 'col':0})
+            self.send_query("tell", "source-eof", text)
+        else:
+            return self.send_query("tell", "start", "end", text)
 
     # Path management
     def add_build_path(self, path):
