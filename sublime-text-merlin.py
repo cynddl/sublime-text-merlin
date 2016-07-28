@@ -26,8 +26,10 @@ def merlin_process():
         running_process = MerlinProcess()
     return running_process
 
+
 def merlin_view(view):
     return MerlinView(merlin_process(), view)
+
 
 class MerlinLoadPackage(sublime_plugin.WindowCommand):
     """
