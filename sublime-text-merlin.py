@@ -9,6 +9,7 @@ import sublime_plugin
 import re
 import os
 import sys
+import html
 
 if sys.version_info < (3, 0):
     from merlin.process import MerlinProcess, MerlinView
@@ -19,6 +20,17 @@ else:
 
 running_process = None
 
+phantom_style = """
+<style>
+    .merlin-type {
+        background-color: color(var(--bluish));
+        color: var(--background);
+        padding: 4px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+</style>
+"""
 
 def merlin_process():
     global running_process
@@ -177,6 +189,7 @@ class MerlinTypeEnclosing:
         #   'start', 'end': {'line': int, 'col': int}
         # }
         self.enclosing = merlin.type_enclosing(line + 1, col)
+        print(self.enclosing)
         self.view = view
 
     def _item_region(self, item):
@@ -196,7 +209,11 @@ class MerlinTypeEnclosing:
         return list(map(self._item_format, self.enclosing))
 
     def show_panel(self):
-        self.view.window().show_quick_panel(self._items(), self.on_done, sublime.MONOSPACE_FONT)
+        start_text_point = self.view.text_point(self.enclosing[0]["start"]["line"] - 1, self.enclosing[0]["start"]["col"])
+        end_text_point = self.view.text_point(self.enclosing[0]["end"]["line"] - 1, self.enclosing[0]["end"]["col"])
+
+        self.view.add_regions("merlin_type_region", [ sublime.Region(start_text_point, end_text_point) ], "variable", "", sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
+        self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_style + "<span class='merlin-type'>: " + self._items()[0] + "</span>", sublime.LAYOUT_INLINE)
 
     def show_menu(self):
         self.view.show_popup_menu(self._items(), self.on_done, sublime.MONOSPACE_FONT)
@@ -208,13 +225,21 @@ class MerlinTypeEnclosing:
             sel.add(self._item_region(self.enclosing[index]))
 
 
-class MerlinTypeCommand(sublime_plugin.WindowCommand):
+class MerlinTypeAtCursorCmd(sublime_plugin.WindowCommand):
     """
     Return type information around cursor.
     """
+    def __init__(self, window):
+        self.x = 0
+        self.window = window
+
     def run(self):
-        enclosing = MerlinTypeEnclosing(self.view)
+        view = self.window.active_view()
+        view.erase_phantoms("merlin_type")
+        enclosing = MerlinTypeEnclosing(view)
         enclosing.show_panel()
+        self.x += 1
+        print(self.x)
 
 
 class MerlinTypeMenu(sublime_plugin.TextCommand):
