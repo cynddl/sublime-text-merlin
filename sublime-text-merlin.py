@@ -24,12 +24,23 @@ enclosing = None
 
 phantom_style = """
 <style>
-    .merlin-type {
-        background-color: color(var(--bluish));
+    .merlin-phantom {
         color: var(--background);
         padding: 4px;
         font-weight: bold;
         border-radius: 4px;
+    }
+
+    .merlin-type {
+        background-color: color(var(--bluish));
+    }
+
+    .merlin-warning {
+        background-color: color(var(--yellowish));
+    }
+
+    .merlin-error {
+        background-color: color(var(--redish));
     }
 
     .merlin-type .counter {
@@ -234,7 +245,7 @@ class MerlinTypeEnclosing:
         start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
         end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
 
-        phantom_content = phantom_style + "<span class='merlin-type'>: " + self._items()[self.index] + " <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
+        phantom_content = phantom_style + "<span class='merlin-phantom merlin-type'>: " + self._items()[self.index] + " <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
 
         self.view.add_regions("merlin_type_region", [ sublime.Region(start_text_point, end_text_point) ], "variable", "", sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
         self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_content, sublime.LAYOUT_INLINE)
@@ -510,7 +521,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
 
         merlin_view(view).sync()
-        self.display_in_error_panel(view)
+        self.display_errors(view)
         self.show_errors(view)
 
     @only_ocaml
@@ -562,14 +573,12 @@ class MerlinBuffer(sublime_plugin.EventListener):
                 pnt_start = merlin_pos(view, pos_start)
                 pnt_stop = merlin_pos(view, pos_stop)
                 r = sublime.Region(pnt_start, pnt_stop)
-                line_r = view.full_line(r)
-                line_r = sublime.Region(line_r.a - 1, line_r.b)
                 underlines.append(r)
 
                 # Remove line and character number
                 message = e['message']
 
-                error_messages.append((line_r, message))
+                error_messages.append((r, message))
 
         self.error_messages = error_messages
         flag = sublime.DRAW_OUTLINED
@@ -580,18 +589,22 @@ class MerlinBuffer(sublime_plugin.EventListener):
     @only_ocaml
     def on_selection_modified(self, view):
         global enclosing
-        self.display_in_error_panel(view)
+        self.display_errors(view)
         enclosing = None
 
-    def display_in_error_panel(self, view):
+    def display_errors(self, view):
         """
         Display error message to the status bar when the selection intersects
         with errors in the current view.
         """
 
+        view.erase_phantoms("merlin_error_phantom")
+
         caret_region = view.sel()[0]
 
         for message_region, message_text in self.error_messages:
             if message_region.intersects(caret_region):
-                merlin_error_panel.open()
-                merlin_error_panel.set_data(message_text)
+                phantom_type = "warning" if message_text[:7] == "Warning" else "error"
+                phantom_content = phantom_style + "<span class='merlin-phantom merlin-" + phantom_type + "'>" + message_text + "</span>"
+                view.add_phantom("merlin_error_phantom", message_region, phantom_content, sublime.LAYOUT_BLOCK)
+
