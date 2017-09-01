@@ -20,14 +20,21 @@ else:
 
 running_process = None
 
+enclosing = None
+
 phantom_style = """
 <style>
     .merlin-type {
         background-color: color(var(--bluish));
         color: var(--background);
         padding: 4px;
-        border-radius: 4px;
         font-weight: bold;
+        border-radius: 4px;
+    }
+
+    .merlin-type .counter {
+        font-size: .8em;
+        color: color(var(--background) blend(var(--bluish) 50%));
     }
 </style>
 """
@@ -169,7 +176,6 @@ class MerlinDisableExtension(sublime_plugin.WindowCommand):
         if index != -1:
             self.merlin.extension_disable([self.extensions[index]])
 
-
 class MerlinTypeEnclosing:
     """
     Return type information around cursor.
@@ -189,8 +195,8 @@ class MerlinTypeEnclosing:
         #   'start', 'end': {'line': int, 'col': int}
         # }
         self.enclosing = merlin.type_enclosing(line + 1, col)
-        print(self.enclosing)
         self.view = view
+        self.index = -1
 
     def _item_region(self, item):
         start = merlin_pos(self.view, item['start'])
@@ -208,12 +214,30 @@ class MerlinTypeEnclosing:
     def _items(self):
         return list(map(self._item_format, self.enclosing))
 
-    def show_panel(self):
-        start_text_point = self.view.text_point(self.enclosing[0]["start"]["line"] - 1, self.enclosing[0]["start"]["col"])
-        end_text_point = self.view.text_point(self.enclosing[0]["end"]["line"] - 1, self.enclosing[0]["end"]["col"])
+    def show_phantom(self):
+        self.view.erase_regions("merlin_type_region")
+        self.view.erase_phantoms("merlin_type")
+
+        if len(self.enclosing) == 0:
+            return
+
+        self.index += 1
+        self.index %= len(self.enclosing)
+
+        if len(self.enclosing) <= self.index:
+            return
+
+        print(self.enclosing, self.index)
+
+        enc = self.enclosing[self.index]
+
+        start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
+        end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
+
+        phantom_content = phantom_style + "<span class='merlin-type'>: " + self._items()[self.index] + " <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
 
         self.view.add_regions("merlin_type_region", [ sublime.Region(start_text_point, end_text_point) ], "variable", "", sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
-        self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_style + "<span class='merlin-type'>: " + self._items()[0] + "</span>", sublime.LAYOUT_INLINE)
+        self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_content, sublime.LAYOUT_INLINE)
 
     def show_menu(self):
         self.view.show_popup_menu(self._items(), self.on_done, sublime.MONOSPACE_FONT)
@@ -224,22 +248,22 @@ class MerlinTypeEnclosing:
             sel.clear()
             sel.add(self._item_region(self.enclosing[index]))
 
-
 class MerlinTypeAtCursorCmd(sublime_plugin.WindowCommand):
     """
     Return type information around cursor.
     """
     def __init__(self, window):
-        self.x = 0
         self.window = window
 
     def run(self):
+        global enclosing
+
         view = self.window.active_view()
-        view.erase_phantoms("merlin_type")
-        enclosing = MerlinTypeEnclosing(view)
-        enclosing.show_panel()
-        self.x += 1
-        print(self.x)
+
+        if enclosing is None:
+            enclosing = MerlinTypeEnclosing(view)
+
+        enclosing.show_phantom()
 
 
 class MerlinTypeMenu(sublime_plugin.TextCommand):
@@ -491,7 +515,11 @@ class MerlinBuffer(sublime_plugin.EventListener):
 
     @only_ocaml
     def on_modified(self, view):
+        global enclosing
         view.erase_regions('ocaml-underlines-errors')
+        view.erase_regions("merlin_type_region")
+        view.erase_phantoms("merlin_type")
+        enclosing = None
 
     def _plugin_dir(self):
         path = os.path.realpath(__file__)
@@ -551,7 +579,9 @@ class MerlinBuffer(sublime_plugin.EventListener):
 
     @only_ocaml
     def on_selection_modified(self, view):
+        global enclosing
         self.display_in_error_panel(view)
+        enclosing = None
 
     def display_in_error_panel(self, view):
         """
