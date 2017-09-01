@@ -36,7 +36,7 @@ phantom_style = """
     }
 
     .merlin-warning {
-        background-color: color(var(--yellowish));
+        background-color: color(var(--orangish));
     }
 
     .merlin-error {
@@ -237,8 +237,6 @@ class MerlinTypeEnclosing:
 
         if len(self.enclosing) <= self.index:
             return
-
-        print(self.enclosing, self.index)
 
         enc = self.enclosing[self.index]
 
@@ -528,6 +526,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
     def on_modified(self, view):
         global enclosing
         view.erase_regions('ocaml-underlines-errors')
+        view.erase_regions('ocaml-underlines-warnings')
         view.erase_regions("merlin_type_region")
         view.erase_phantoms("merlin_type")
         enclosing = None
@@ -560,31 +559,38 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
 
         view.erase_regions('ocaml-underlines-errors')
+        view.erase_regions('ocaml-underlines-warnings')
 
         errors = merlin_view(view).report_errors()
 
         error_messages = []
-        underlines = []
+        warning_underlines = []
+        error_underlines = []
 
         for e in errors:
             if 'start' in e and 'end' in e:
                 pos_start = e['start']
                 pos_stop = e['end']
-                pnt_start = merlin_pos(view, pos_start)
-                pnt_stop = merlin_pos(view, pos_stop)
+                pnt_start = merlin_pos(view, pos_start) - 1
+                pnt_stop = merlin_pos(view, pos_stop) + 1
                 r = sublime.Region(pnt_start, pnt_stop)
-                underlines.append(r)
 
-                # Remove line and character number
                 message = e['message']
+
+                if message[:7] == "Warning":
+                    warning_underlines.append(r)
+                else:
+                    error_underlines.append(r)
 
                 error_messages.append((r, message))
 
+
+        view.add_regions('ocaml-underlines-warnings', warning_underlines, 'invalid.broken', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_SQUIGGLY_UNDERLINE)
+        view.add_regions('ocaml-underlines-errors', error_underlines, 'invalid.illegal', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_SQUIGGLY_UNDERLINE)
+
         self.error_messages = error_messages
-        flag = sublime.DRAW_OUTLINED
         # add_regions(key, regions, scope, icon, flags)
-        view.add_regions('ocaml-underlines-errors', underlines, 'invalid',
-                         self.gutter_icon_path(), flag)
+
 
     @only_ocaml
     def on_selection_modified(self, view):
