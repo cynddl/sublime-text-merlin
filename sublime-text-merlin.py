@@ -244,22 +244,15 @@ class MerlinTypeEnclosing:
         phantom_content = phantom_style + "<span class='merlin-phantom merlin-type'>: " + self._items()[self.index] + " <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
         self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_content, sublime.LAYOUT_INLINE)
 
-    def show_popup(self, edit):
+    def show_popup(self):
         window = self.view.window()
-        print(self.view)
         syntax_file = self.view.settings().get('syntax')
-        print(syntax_file)
-        output = window.create_output_panel("merlin-types.mli")
-
-        full_region = sublime.Region(0, self.view.size())
         sig_text = self.enclosing[self.index]["type"]
-        output.replace(edit, full_region, sig_text)
 
-        output.set_syntax_file(syntax_file)
+        window.run_command("merlin_show_types_output", {"args": {"text": sig_text, "syntax": syntax_file}})
 
-        window.run_command("show_panel", {"panel": "output.merlin-types.mli"})
 
-    def show(self, edit):
+    def show(self):
         if len(self.enclosing) == 0:
             return
 
@@ -274,7 +267,7 @@ class MerlinTypeEnclosing:
         if "\n" not in self.enclosing[self.index]["type"]:
             self.show_phantom()
         else:
-            self.show_popup(edit)
+            self.show_popup()
 
     def show_menu(self):
         self.view.show_popup_menu(self._items(), self.on_done, sublime.MONOSPACE_FONT)
@@ -285,19 +278,39 @@ class MerlinTypeEnclosing:
             sel.clear()
             sel.add(self._item_region(self.enclosing[index]))
 
-class MerlinTypeAtCursorCmd(sublime_plugin.TextCommand):
+class MerlinTypeAtCursorCmd(sublime_plugin.WindowCommand):
     """
     Return type information around cursor.
     """
-    def run(self, edit):
+
+    def __init__(self, window):
+        self.window = window
+
+    def run(self):
         global enclosing
 
-        id = self.view.id()
+        view = self.window.active_view()
+        id = view.id()
         if id not in enclosing or enclosing[id] == None:
             print("Resetting")
-            enclosing[id] = MerlinTypeEnclosing(self.view)
+            enclosing[id] = MerlinTypeEnclosing(view)
 
-        enclosing[id].show(edit)
+        enclosing[id].show()
+
+class MerlinShowTypesOutput(sublime_plugin.TextCommand):
+    def run(self, edit, args):
+        sig_text = args["text"]
+        syntax_file = args["syntax"]
+        window = self.view.window()
+
+        output = window.create_output_panel("merlin-types.mli")
+        full_region = sublime.Region(0, output.size())
+        output.replace(edit, full_region, sig_text)
+
+        output.set_syntax_file(syntax_file)
+        output.sel().clear()
+        window.run_command("show_panel", {"panel": "output.merlin-types.mli"})
+
 
 
 class MerlinTypeMenu(sublime_plugin.TextCommand):
@@ -621,7 +634,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
     def on_selection_modified(self, view):
         global enclosing
         self.display_errors(view)
-        print("On_selection_modified")
+        print("On_selection_modified", view.id())
         enclosing[view.id()] = None
 
     def display_errors(self, view):
