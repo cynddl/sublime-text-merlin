@@ -20,7 +20,7 @@ else:
 
 running_process = None
 
-enclosing = None
+enclosing = {}
 
 phantom_style = """
 <style>
@@ -225,28 +225,56 @@ class MerlinTypeEnclosing:
     def _items(self):
         return list(map(self._item_format, self.enclosing))
 
-    def show_phantom(self):
+    def show_region(self):
         self.view.erase_regions("merlin_type_region")
-        self.view.erase_phantoms("merlin_type")
-
-        if len(self.enclosing) == 0:
-            return
-
-        self.index += 1
-        self.index %= len(self.enclosing)
-
-        if len(self.enclosing) <= self.index:
-            return
-
         enc = self.enclosing[self.index]
 
         start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
         end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
 
-        phantom_content = phantom_style + "<span class='merlin-phantom merlin-type'>: " + self._items()[self.index] + " <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
-
         self.view.add_regions("merlin_type_region", [ sublime.Region(start_text_point, end_text_point) ], "variable", "", sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
+
+    def show_phantom(self):
+        self.view.erase_phantoms("merlin_type")
+
+        enc = self.enclosing[self.index]
+        start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
+        end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
+
+        phantom_content = phantom_style + "<span class='merlin-phantom merlin-type'>: " + self._items()[self.index] + " <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
         self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_content, sublime.LAYOUT_INLINE)
+
+    def show_popup(self, edit):
+        window = self.view.window()
+        print(self.view)
+        syntax_file = self.view.settings().get('syntax')
+        print(syntax_file)
+        output = window.create_output_panel("merlin-types.mli")
+
+        full_region = sublime.Region(0, self.view.size())
+        sig_text = self.enclosing[self.index]["type"]
+        output.replace(edit, full_region, sig_text)
+
+        output.set_syntax_file(syntax_file)
+
+        window.run_command("show_panel", {"panel": "output.merlin-types.mli"})
+
+    def show(self, edit):
+        if len(self.enclosing) == 0:
+            return
+
+        self.index += 1
+        self.index %= len(self.enclosing)
+        print("Idx: {}".format(self.index))
+        print("Len: {}".format(len(self.enclosing)))
+
+        if len(self.enclosing) <= self.index:
+            return
+        self.show_region()
+        if "\n" not in self.enclosing[self.index]["type"]:
+            self.show_phantom()
+        else:
+            self.show_popup(edit)
 
     def show_menu(self):
         self.view.show_popup_menu(self._items(), self.on_done, sublime.MONOSPACE_FONT)
@@ -257,22 +285,19 @@ class MerlinTypeEnclosing:
             sel.clear()
             sel.add(self._item_region(self.enclosing[index]))
 
-class MerlinTypeAtCursorCmd(sublime_plugin.WindowCommand):
+class MerlinTypeAtCursorCmd(sublime_plugin.TextCommand):
     """
     Return type information around cursor.
     """
-    def __init__(self, window):
-        self.window = window
-
-    def run(self):
+    def run(self, edit):
         global enclosing
 
-        view = self.window.active_view()
+        id = self.view.id()
+        if id not in enclosing or enclosing[id] == None:
+            print("Resetting")
+            enclosing[id] = MerlinTypeEnclosing(self.view)
 
-        if enclosing is None:
-            enclosing = MerlinTypeEnclosing(view)
-
-        enclosing.show_phantom()
+        enclosing[id].show(edit)
 
 
 class MerlinTypeMenu(sublime_plugin.TextCommand):
@@ -280,8 +305,8 @@ class MerlinTypeMenu(sublime_plugin.TextCommand):
     Display type information in context menu
     """
     def run(self, edit):
-        enclosing = MerlinTypeEnclosing(self.view)
-        enclosing.show_menu()
+        enclosing[self.view.id()] = MerlinTypeEnclosing(self.view)
+        enclosing[self.view.id()].show_menu()
 
 
 def merlin_locate_result(result, window):
@@ -529,7 +554,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         view.erase_regions('ocaml-underlines-warnings')
         view.erase_regions("merlin_type_region")
         view.erase_phantoms("merlin_type")
-        enclosing = None
+        enclosing[view.id()] = None
 
     def _plugin_dir(self):
         path = os.path.realpath(__file__)
@@ -596,7 +621,8 @@ class MerlinBuffer(sublime_plugin.EventListener):
     def on_selection_modified(self, view):
         global enclosing
         self.display_errors(view)
-        enclosing = None
+        print("On_selection_modified")
+        enclosing[view.id()] = None
 
     def display_errors(self, view):
         """
