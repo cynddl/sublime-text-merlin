@@ -29,7 +29,11 @@
     },
     {
         "caption": "Merlin: Type expression under cursor",
-        "command": "merlin_type_command"
+        "command": "merlin_type_at_cursor_cmd"
+    },
+    {
+        "caption": "Merlin: Widen type range",
+        "command": "merlin_widen_type_at_cursor_cmd"
     },
     {
         "caption": "Merlin: Enable syntax extension",

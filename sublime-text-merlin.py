@@ -9,16 +9,61 @@ import sublime_plugin
 import re
 import os
 import sys
+import html
 
 if sys.version_info < (3, 0):
     from merlin.process import MerlinProcess, MerlinView
     from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 else:
-    from .merlin.process import MerlinProcess, MerlinView
-    from .merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
+    # Weird hacks to avoid sublime caching an old version
+    if sys.version_info.minor < 4:
+        from imp import reload
+    else:
+        from importlib import reload
+    merlin_path = os.path.dirname(os.path.realpath(__file__))
+    if merlin_path not in sys.path:
+        sys.path.append(merlin_path)
+
+    import merlin.process
+    import merlin.helpers
+
+    process = reload(merlin.process)
+    helpers = reload(merlin.helpers)
+
+    from merlin.process import MerlinProcess, MerlinView
+    from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 
 running_process = None
 
+enclosing = {}
+
+phantom_style = """
+<style>
+    .merlin-phantom {
+        color: var(--background);
+        padding: 4px;
+        font-weight: bold;
+        border-radius: 4px;
+    }
+
+    .merlin-type {
+        background-color: color(var(--bluish));
+    }
+
+    .merlin-warning {
+        background-color: color(var(--orangish));
+    }
+
+    .merlin-error {
+        background-color: color(var(--redish));
+    }
+
+    .merlin-type .counter {
+        font-size: .8em;
+        color: color(var(--background) blend(var(--bluish) 50%));
+    }
+</style>
+"""
 
 def merlin_process():
     global running_process
@@ -157,7 +202,6 @@ class MerlinDisableExtension(sublime_plugin.WindowCommand):
         if index != -1:
             self.merlin.extension_disable([self.extensions[index]])
 
-
 class MerlinTypeEnclosing:
     """
     Return type information around cursor.
@@ -167,17 +211,17 @@ class MerlinTypeEnclosing:
         merlin = merlin_view(view)
         merlin.sync()
 
-        pos = view.sel()
-        line, col = view.rowcol(pos[0].begin())
-
         # FIXME: proper integration into sublime-text
         # enclosing is a list of json objects of the form:
         # { 'type': string;
         #   'tail': "no"|"position"|"call" // tailcall information
         #   'start', 'end': {'line': int, 'col': int}
         # }
-        self.enclosing = merlin.type_enclosing(line + 1, col)
         self.view = view
+        self.index = 0
+        self.verbosity = 0
+        self.merlin = merlin
+        self.update_enclosing()
 
     def _item_region(self, item):
         start = merlin_pos(self.view, item['start'])
@@ -195,8 +239,67 @@ class MerlinTypeEnclosing:
     def _items(self):
         return list(map(self._item_format, self.enclosing))
 
-    def show_panel(self):
-        self.view.window().show_quick_panel(self._items(), self.on_done, sublime.MONOSPACE_FONT)
+    def show_region(self):
+        enc = self.enclosing[self.index]
+
+        start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
+        end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
+
+        self.view.add_regions("merlin_type_region", [ sublime.Region(start_text_point, end_text_point) ], "variable", "", sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
+
+    def show_phantom(self):
+        enc = self.enclosing[self.index]
+        start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
+        end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
+
+        phantom_content = phantom_style + "<span class='merlin-phantom merlin-type'>: " + self._items()[self.index] + " <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
+        self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_content, sublime.LAYOUT_INLINE)
+
+    def show_popup(self):
+        window = self.view.window()
+        syntax_file = self.view.settings().get('syntax')
+        sig_text = self.enclosing[self.index]["type"]
+
+        window.run_command("merlin_show_types_output", {"args": {"text": sig_text, "syntax": syntax_file}})
+
+    def update_enclosing(self):
+        pos = self.view.sel()
+        line, col = self.view.rowcol(pos[0].begin())
+        print(self.verbosity)
+        enclosing = self.merlin.type_enclosing(line + 1, col, verbosity=self.verbosity)
+        self.enclosing = enclosing 
+
+    def show_deepen(self):
+        print("Deepen")
+        self.update_enclosing()
+        self.verbosity += 1
+        self.show()
+
+    def show_widen(self):
+        if self.verbosity != 1:
+            self.verbosity = 0
+            self.update_enclosing()
+            self.verbosity = 1
+        self.index += 1
+        self.index %= len(self.enclosing)
+        self.show()
+
+    def show(self):
+        window = self.view.window()
+
+        self.view.erase_phantoms("merlin_type")
+        self.view.erase_regions("merlin_type_region")
+        window.destroy_output_panel("merlin-types.mli")
+        if len(self.enclosing) == 0:
+            return
+
+        if len(self.enclosing) <= self.index:
+            return
+        self.show_region()
+        if "\n" not in self.enclosing[self.index]["type"]:
+            self.show_phantom()
+        else:
+            self.show_popup()
 
     def show_menu(self):
         self.view.show_popup_menu(self._items(), self.on_done, sublime.MONOSPACE_FONT)
@@ -207,14 +310,52 @@ class MerlinTypeEnclosing:
             sel.clear()
             sel.add(self._item_region(self.enclosing[index]))
 
-
-class MerlinTypeCommand(sublime_plugin.WindowCommand):
+class MerlinTypeAtCursorCmd(sublime_plugin.WindowCommand):
     """
     Return type information around cursor.
     """
+
+    def __init__(self, window):
+        self.window = window
+
     def run(self):
-        enclosing = MerlinTypeEnclosing(self.view)
-        enclosing.show_panel()
+        global enclosing
+
+        view = self.window.active_view()
+        id = view.id()
+        if id not in enclosing or enclosing[id] == None:
+            enclosing[id] = MerlinTypeEnclosing(view)
+
+        enclosing[id].show_deepen()
+
+class MerlinWidenTypeAtCursorCmd(sublime_plugin.WindowCommand):
+    def __init__(self, window):
+        self.window = window
+
+    def run(self):
+        global enclosing
+
+        view = self.window.active_view()
+        id = view.id()
+        if id not in enclosing or enclosing[id] == None:
+            enclosing[id] = MerlinTypeEnclosing(view)
+
+        enclosing[id].show_widen()
+
+class MerlinShowTypesOutput(sublime_plugin.TextCommand):
+    def run(self, edit, args):
+        sig_text = args["text"]
+        syntax_file = args["syntax"]
+        window = self.view.window()
+
+        output = window.create_output_panel("merlin-types.mli")
+        full_region = sublime.Region(0, output.size())
+        output.replace(edit, full_region, sig_text)
+
+        output.set_syntax_file(syntax_file)
+        output.sel().clear()
+        window.run_command("show_panel", {"panel": "output.merlin-types.mli"})
+
 
 
 class MerlinTypeMenu(sublime_plugin.TextCommand):
@@ -222,8 +363,8 @@ class MerlinTypeMenu(sublime_plugin.TextCommand):
     Display type information in context menu
     """
     def run(self, edit):
-        enclosing = MerlinTypeEnclosing(self.view)
-        enclosing.show_menu()
+        enclosing[self.view.id()] = MerlinTypeEnclosing(self.view)
+        enclosing[self.view.id()].show_menu()
 
 
 def merlin_locate_result(result, window):
@@ -461,12 +602,17 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
 
         merlin_view(view).sync()
-        self.display_in_error_panel(view)
+        self.display_errors(view)
         self.show_errors(view)
 
     @only_ocaml
     def on_modified(self, view):
+        global enclosing
         view.erase_regions('ocaml-underlines-errors')
+        view.erase_regions('ocaml-underlines-warnings')
+        view.erase_regions("merlin_type_region")
+        view.erase_phantoms("merlin_type")
+        enclosing[view.id()] = None
 
     def _plugin_dir(self):
         path = os.path.realpath(__file__)
@@ -496,47 +642,58 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
 
         view.erase_regions('ocaml-underlines-errors')
+        view.erase_regions('ocaml-underlines-warnings')
 
         errors = merlin_view(view).report_errors()
 
         error_messages = []
-        underlines = []
+        warning_underlines = []
+        error_underlines = []
 
         for e in errors:
             if 'start' in e and 'end' in e:
                 pos_start = e['start']
                 pos_stop = e['end']
-                pnt_start = merlin_pos(view, pos_start)
-                pnt_stop = merlin_pos(view, pos_stop)
+                pnt_start = merlin_pos(view, pos_start) - 1
+                pnt_stop = merlin_pos(view, pos_stop) + 1
                 r = sublime.Region(pnt_start, pnt_stop)
-                line_r = view.full_line(r)
-                line_r = sublime.Region(line_r.a - 1, line_r.b)
-                underlines.append(r)
 
-                # Remove line and character number
                 message = e['message']
 
-                error_messages.append((line_r, message))
+                if message[:7] == "Warning":
+                    warning_underlines.append(r)
+                else:
+                    error_underlines.append(r)
+
+                error_messages.append((r, message))
+
+
+        view.add_regions('ocaml-underlines-warnings', warning_underlines, 'invalid.broken', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_SQUIGGLY_UNDERLINE)
+        view.add_regions('ocaml-underlines-errors', error_underlines, 'invalid.illegal', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_SQUIGGLY_UNDERLINE)
 
         self.error_messages = error_messages
-        flag = sublime.DRAW_OUTLINED
         # add_regions(key, regions, scope, icon, flags)
-        view.add_regions('ocaml-underlines-errors', underlines, 'invalid',
-                         self.gutter_icon_path(), flag)
+
 
     @only_ocaml
     def on_selection_modified(self, view):
-        self.display_in_error_panel(view)
+        global enclosing
+        self.display_errors(view)
+        enclosing[view.id()] = None
 
-    def display_in_error_panel(self, view):
+    def display_errors(self, view):
         """
         Display error message to the status bar when the selection intersects
         with errors in the current view.
         """
 
+        view.erase_phantoms("merlin_error_phantom")
+
         caret_region = view.sel()[0]
 
         for message_region, message_text in self.error_messages:
             if message_region.intersects(caret_region):
-                merlin_error_panel.open()
-                merlin_error_panel.set_data(message_text)
+                phantom_type = "warning" if message_text[:7] == "Warning" else "error"
+                phantom_content = phantom_style + "<span class='merlin-phantom merlin-" + phantom_type + "'>" + message_text + "</span>"
+                view.add_phantom("merlin_error_phantom", message_region, phantom_content, sublime.LAYOUT_BLOCK)
+
