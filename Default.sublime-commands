@@ -32,6 +32,10 @@
         "command": "merlin_type_at_cursor_cmd"
     },
     {
+        "caption": "Merlin: Widen type range",
+        "command": "merlin_widen_type_at_cursor_cmd"
+    },
+    {
         "caption": "Merlin: Enable syntax extension",
         "command": "merlin_enable_extension"
     },

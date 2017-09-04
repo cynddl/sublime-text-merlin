@@ -15,8 +15,23 @@ if sys.version_info < (3, 0):
     from merlin.process import MerlinProcess, MerlinView
     from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 else:
-    from .merlin.process import MerlinProcess, MerlinView
-    from .merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
+    # Weird hacks to avoid sublime caching an old version
+    if sys.version_info.minor < 4:
+        from imp import reload
+    else:
+        from importlib import reload
+    merlin_path = os.path.dirname(os.path.realpath(__file__))
+    if merlin_path not in sys.path:
+        sys.path.append(merlin_path)
+
+    import merlin.process
+    import merlin.helpers
+
+    process = reload(merlin.process)
+    helpers = reload(merlin.helpers)
+
+    from merlin.process import MerlinProcess, MerlinView
+    from merlin.helpers import merlin_pos, only_ocaml, clean_whitespace
 
 running_process = None
 
@@ -196,18 +211,17 @@ class MerlinTypeEnclosing:
         merlin = merlin_view(view)
         merlin.sync()
 
-        pos = view.sel()
-        line, col = view.rowcol(pos[0].begin())
-
         # FIXME: proper integration into sublime-text
         # enclosing is a list of json objects of the form:
         # { 'type': string;
         #   'tail': "no"|"position"|"call" // tailcall information
         #   'start', 'end': {'line': int, 'col': int}
         # }
-        self.enclosing = merlin.type_enclosing(line + 1, col)
         self.view = view
-        self.index = -1
+        self.index = 0
+        self.verbosity = 0
+        self.merlin = merlin
+        self.update_enclosing()
 
     def _item_region(self, item):
         start = merlin_pos(self.view, item['start'])
@@ -226,7 +240,6 @@ class MerlinTypeEnclosing:
         return list(map(self._item_format, self.enclosing))
 
     def show_region(self):
-        self.view.erase_regions("merlin_type_region")
         enc = self.enclosing[self.index]
 
         start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
@@ -235,8 +248,6 @@ class MerlinTypeEnclosing:
         self.view.add_regions("merlin_type_region", [ sublime.Region(start_text_point, end_text_point) ], "variable", "", sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
 
     def show_phantom(self):
-        self.view.erase_phantoms("merlin_type")
-
         enc = self.enclosing[self.index]
         start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
         end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
@@ -251,15 +262,35 @@ class MerlinTypeEnclosing:
 
         window.run_command("merlin_show_types_output", {"args": {"text": sig_text, "syntax": syntax_file}})
 
+    def update_enclosing(self):
+        pos = self.view.sel()
+        line, col = self.view.rowcol(pos[0].begin())
+        print(self.verbosity)
+        enclosing = self.merlin.type_enclosing(line + 1, col, verbosity=self.verbosity)
+        self.enclosing = enclosing 
 
-    def show(self):
-        if len(self.enclosing) == 0:
-            return
+    def show_deepen(self):
+        print("Deepen")
+        self.update_enclosing()
+        self.verbosity += 1
+        self.show()
 
+    def show_widen(self):
         self.index += 1
         self.index %= len(self.enclosing)
-        print("Idx: {}".format(self.index))
-        print("Len: {}".format(len(self.enclosing)))
+        if self.verbosity != 0:
+            self.verbosity = 0
+            self.update_enclosing()
+        self.show()
+
+    def show(self):
+        window = self.view.window()
+
+        self.view.erase_phantoms("merlin_type")
+        self.view.erase_regions("merlin_type_region")
+        window.destroy_output_panel("merlin-types.mli")
+        if len(self.enclosing) == 0:
+            return
 
         if len(self.enclosing) <= self.index:
             return
@@ -292,10 +323,23 @@ class MerlinTypeAtCursorCmd(sublime_plugin.WindowCommand):
         view = self.window.active_view()
         id = view.id()
         if id not in enclosing or enclosing[id] == None:
-            print("Resetting")
             enclosing[id] = MerlinTypeEnclosing(view)
 
-        enclosing[id].show()
+        enclosing[id].show_deepen()
+
+class MerlinWidenTypeAtCursorCmd(sublime_plugin.WindowCommand):
+    def __init__(self, window):
+        self.window = window
+
+    def run(self):
+        global enclosing
+
+        view = self.window.active_view()
+        id = view.id()
+        if id not in enclosing or enclosing[id] == None:
+            enclosing[id] = MerlinTypeEnclosing(view)
+
+        enclosing[id].show_widen()
 
 class MerlinShowTypesOutput(sublime_plugin.TextCommand):
     def run(self, edit, args):
@@ -634,7 +678,6 @@ class MerlinBuffer(sublime_plugin.EventListener):
     def on_selection_modified(self, view):
         global enclosing
         self.display_errors(view)
-        print("On_selection_modified", view.id())
         enclosing[view.id()] = None
 
     def display_errors(self, view):
