@@ -260,17 +260,22 @@ class MerlinTypeEnclosing:
         syntax_file = self.view.settings().get('syntax')
         sig_text = self.enclosing[self.index]["type"]
 
+        enc = self.enclosing[self.index]
+        start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
+        end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
+
+        phantom_content = phantom_style + "<span class='merlin-phantom merlin-type'>: <i>as output</i> <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
+        self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_content, sublime.LAYOUT_INLINE)
+
         window.run_command("merlin_show_types_output", {"args": {"text": sig_text, "syntax": syntax_file}})
 
     def update_enclosing(self):
         pos = self.view.sel()
         line, col = self.view.rowcol(pos[0].begin())
-        print(self.verbosity)
         enclosing = self.merlin.type_enclosing(line + 1, col, verbosity=self.verbosity)
         self.enclosing = enclosing 
 
     def show_deepen(self):
-        print("Deepen")
         self.update_enclosing()
         self.verbosity += 1
         self.show()

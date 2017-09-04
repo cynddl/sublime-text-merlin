@@ -86,7 +86,6 @@ class MerlinProcess(object):
             finally:
                 if err_msg:
                     sublime.error_message(err_msg)
-                    print(err_msg)
 
         except (OSError, FileNotFoundError) as e:
             print("Failed starting ocamlmerlin. Please ensure that ocamlmerlin"
@@ -107,12 +106,10 @@ class MerlinProcess(object):
         if self.mainpipe is None or self.mainpipe.returncode is not None:
             self.restart()
 
-        print(cmd)
         self.mainpipe.stdin.write(json.dumps(cmd).encode('utf-8'))
         self.mainpipe.stdin.flush()
         line = self.mainpipe.stdout.readline()
         result = json.loads(line.decode('utf-8'))
-        print(result)
         class_ = None
         content = None
         if isinstance(result, dict):
