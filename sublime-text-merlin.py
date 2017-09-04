@@ -276,11 +276,12 @@ class MerlinTypeEnclosing:
         self.show()
 
     def show_widen(self):
-        self.index += 1
-        self.index %= len(self.enclosing)
-        if self.verbosity != 0:
+        if self.verbosity != 1:
             self.verbosity = 0
             self.update_enclosing()
+            self.verbosity = 1
+        self.index += 1
+        self.index %= len(self.enclosing)
         self.show()
 
     def show(self):
