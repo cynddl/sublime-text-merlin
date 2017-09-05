@@ -3,10 +3,9 @@ import json
 
 import sublime
 
-from .helpers import merlin_bin
+from merlin.helpers import merlin_bin
 
 main_protocol_version = 3
-
 
 class MerlinExc(Exception):
     """ Exception returned by merlin. """
@@ -87,7 +86,6 @@ class MerlinProcess(object):
             finally:
                 if err_msg:
                     sublime.error_message(err_msg)
-                    print(err_msg)
 
         except (OSError, FileNotFoundError) as e:
             print("Failed starting ocamlmerlin. Please ensure that ocamlmerlin"
@@ -143,13 +141,13 @@ class MerlinView(object):
         self.process = process
         self.view = view
 
-    def send_query(self, *query):
+    def send_query(self, *query, verbosity=None):
         if self.process.protocol_version() == 1:
             self.process.send_command(["reset", "auto", self.view.file_name()])
             return self.process.send_command(query)
         else:
             document = ["auto", self.view.file_name()]
-            command = {'assoc': None, 'document': document, 'query': query}
+            command = {'assoc': None, 'printer_verbosity': verbosity, 'document': document, 'query': query}
             return self.process.send_command(command)
 
     def complete_cursor(self, base, line, col):
@@ -220,9 +218,9 @@ class MerlinView(object):
         return self.send_query("which", "with_ext", extensions)
 
     # Type information
-    def type_enclosing(self, line, col):
+    def type_enclosing(self, line, col, verbosity=None):
         pos = {'line': line, 'col': col}
-        return self.send_query("type", "enclosing", "at", pos)
+        return self.send_query("type", "enclosing", "at", pos, verbosity=verbosity)
 
     # Extensions management
     def extension_list(self, crit=None):
