@@ -673,8 +673,8 @@ class MerlinBuffer(sublime_plugin.EventListener):
                 error_messages.append((r, message))
 
 
-        view.add_regions('ocaml-underlines-warnings', warning_underlines, 'invalid.broken', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
-        view.add_regions('ocaml-underlines-errors', error_underlines, 'invalid.illegal', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
+        view.add_regions('ocaml-underlines-warnings', warning_underlines, 'invalid.broken.ocaml', "dot", sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
+        view.add_regions('ocaml-underlines-errors', error_underlines, 'invalid.illegal.ocaml', "dot", sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
 
         self.error_messages = error_messages
         # add_regions(key, regions, scope, icon, flags)
