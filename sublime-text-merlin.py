@@ -10,6 +10,7 @@ import re
 import os
 import sys
 import html
+import textwrap
 
 if sys.version_info < (3, 0):
     from merlin.process import MerlinProcess, MerlinView
@@ -41,9 +42,8 @@ phantom_style = """
 <style>
     .merlin-phantom {
         color: var(--background);
-        padding: 4px;
+        padding: 4px 8px;
         font-weight: bold;
-        border-radius: 4px;
     }
 
     .merlin-type {
@@ -273,7 +273,7 @@ class MerlinTypeEnclosing:
         pos = self.view.sel()
         line, col = self.view.rowcol(pos[0].begin())
         enclosing = self.merlin.type_enclosing(line + 1, col, verbosity=self.verbosity)
-        self.enclosing = enclosing 
+        self.enclosing = enclosing
 
     def show_deepen(self):
         self.update_enclosing()
@@ -699,6 +699,8 @@ class MerlinBuffer(sublime_plugin.EventListener):
         for message_region, message_text in self.error_messages:
             if message_region.intersects(caret_region):
                 phantom_type = "warning" if message_text[:7] == "Warning" else "error"
-                phantom_content = phantom_style + "<span class='merlin-phantom merlin-" + phantom_type + "'>" + message_text + "</span>"
+                wrapped_message = "<br />".join(textwrap.wrap(message_text, 80, break_long_words=False))
+                print(wrapped_message)
+                phantom_content = phantom_style + "<div class='merlin-phantom merlin-" + phantom_type + "'>" + wrapped_message + "</div>"
                 view.add_phantom("merlin_error_phantom", message_region, phantom_content, sublime.LAYOUT_BLOCK)
 
