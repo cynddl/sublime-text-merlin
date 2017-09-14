@@ -659,8 +659,8 @@ class MerlinBuffer(sublime_plugin.EventListener):
             if 'start' in e and 'end' in e:
                 pos_start = e['start']
                 pos_stop = e['end']
-                pnt_start = merlin_pos(view, pos_start) - 1
-                pnt_stop = merlin_pos(view, pos_stop) + 1
+                pnt_start = merlin_pos(view, pos_start)
+                pnt_stop = merlin_pos(view, pos_stop)
                 r = sublime.Region(pnt_start, pnt_stop)
 
                 message = e['message']
@@ -673,8 +673,8 @@ class MerlinBuffer(sublime_plugin.EventListener):
                 error_messages.append((r, message))
 
 
-        view.add_regions('ocaml-underlines-warnings', warning_underlines, 'invalid.broken', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_SQUIGGLY_UNDERLINE)
-        view.add_regions('ocaml-underlines-errors', error_underlines, 'invalid.illegal', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE | sublime.DRAW_SQUIGGLY_UNDERLINE)
+        view.add_regions('ocaml-underlines-warnings', warning_underlines, 'invalid.broken', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
+        view.add_regions('ocaml-underlines-errors', error_underlines, 'invalid.illegal', self.gutter_icon_path(), sublime.DRAW_NO_FILL | sublime.DRAW_OUTLINED)
 
         self.error_messages = error_messages
         # add_regions(key, regions, scope, icon, flags)
@@ -702,5 +702,5 @@ class MerlinBuffer(sublime_plugin.EventListener):
                 wrapped_message = "<br />".join(textwrap.wrap(message_text, 80, break_long_words=False))
                 print(wrapped_message)
                 phantom_content = phantom_style + "<div class='merlin-phantom merlin-" + phantom_type + "'>" + wrapped_message + "</div>"
-                view.add_phantom("merlin_error_phantom", message_region, phantom_content, sublime.LAYOUT_BLOCK)
+                view.add_phantom("merlin_error_phantom", sublime.Region(message_region.end(), message_region.end()), phantom_content, sublime.LAYOUT_BLOCK)
 
