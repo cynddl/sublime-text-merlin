@@ -618,6 +618,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         view.erase_regions("merlin_type_region")
         view.erase_phantoms("merlin_type")
         enclosing[view.id()] = None
+        error_messages = []
 
     def _plugin_dir(self):
         path = os.path.realpath(__file__)
