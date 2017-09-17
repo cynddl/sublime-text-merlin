@@ -218,7 +218,7 @@ class MerlinTypeEnclosing:
         #   'start', 'end': {'line': int, 'col': int}
         # }
         self.view = view
-        self.index = 0
+        self.index = -1
         self.verbosity = 0
         self.merlin = merlin
         self.update_enclosing()
@@ -277,6 +277,8 @@ class MerlinTypeEnclosing:
 
     def show_deepen(self):
         self.update_enclosing()
+        if self.index == -1:
+            self.index = 0
         self.verbosity += 1
         self.show()
 
