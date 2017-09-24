@@ -9,7 +9,6 @@ import sublime_plugin
 import re
 import os
 import sys
-import html
 import textwrap
 
 if sys.version_info < (3, 0):
