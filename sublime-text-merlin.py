@@ -704,7 +704,6 @@ class MerlinBuffer(sublime_plugin.EventListener):
                 phantom_type = "warning" if message_text[:7] == "Warning" else "error"
                 message_lines = message_text.split("\n")
                 wrapped_message = "<br />".join("<br />".join(textwrap.wrap(message_line, 80, break_long_words=False)) for message_line in message_lines)
-                print(wrapped_message)
                 phantom_content = phantom_style + "<div class='merlin-phantom merlin-" + phantom_type + "'>" + wrapped_message + "</div>"
                 view.add_phantom("merlin_error_phantom", sublime.Region(message_region.end(), message_region.end()), phantom_content, sublime.LAYOUT_BLOCK)
 
