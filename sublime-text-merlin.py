@@ -251,8 +251,17 @@ class MerlinTypeEnclosing:
         start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
         end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
 
-        phantom_content = phantom_style + "<span class='merlin-phantom merlin-type'>: " + self._items()[self.index] + " <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
-        self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_content, sublime.LAYOUT_INLINE)
+        phantom_content = """{}
+                          <span class='merlin-phantom merlin-type'>:
+                          {} <span class='counter'>({} of {})</span>
+                          </span>
+                          """.format(phantom_style, self._items()[self.index], self.index + 1, len(self.enclosing))
+
+        self.view.add_phantom(
+            "merlin_type",
+            sublime.Region(end_text_point, end_text_point),
+            phantom_content,
+            sublime.LAYOUT_INLINE)
 
     def show_popup(self):
         window = self.view.window()
@@ -263,8 +272,17 @@ class MerlinTypeEnclosing:
         start_text_point = self.view.text_point(enc["start"]["line"] - 1, enc["start"]["col"])
         end_text_point = self.view.text_point(enc["end"]["line"] - 1, enc["end"]["col"])
 
-        phantom_content = phantom_style + "<span class='merlin-phantom merlin-type'>: <i>as output</i> <span class='counter'>(" + str(self.index + 1) + " of " + str(len(self.enclosing)) + ")</span></span>"
-        self.view.add_phantom("merlin_type", sublime.Region(end_text_point, end_text_point), phantom_content, sublime.LAYOUT_INLINE)
+        phantom_content = """{}
+                          <span class='merlin-phantom merlin-type'>:
+                          <i>as output</i> <span class='counter'>({} of {})</span>
+                          </span>""".format(phantom_style, self.index + 1, len(self.enclosing))
+
+        self.view.add_phantom(
+            "merlin_type",
+            sublime.Region(end_text_point, end_text_point),
+            phantom_content,
+            sublime.LAYOUT_INLINE
+        )
 
         window.run_command("merlin_show_types_output", {"args": {"text": sig_text, "syntax": syntax_file}})
 
@@ -608,8 +626,8 @@ class MerlinBuffer(sublime_plugin.EventListener):
         """
 
         merlin_view(view).sync()
-        self.display_errors(view)
-        self.show_errors(view)
+        self.show_errors_phantoms(view)
+        self.show_errors_gutters(view)
 
     @only_ocaml
     def on_modified(self, view):
@@ -641,9 +659,10 @@ class MerlinBuffer(sublime_plugin.EventListener):
             return "Cache/Merlin/gutter-icon.png"
 
         except IOError:
-            return "Packages/" + self._plugin_dir() + "/gutter-icon.png"
+            return os.path.join("Packages", self._plugin_dir(),
+                                "gutter-icon.png")
 
-    def show_errors(self, view):
+    def show_errors_gutters(self, view):
         """
         Show a simple gutter icon for each parsing error.
         """
@@ -685,24 +704,34 @@ class MerlinBuffer(sublime_plugin.EventListener):
     @only_ocaml
     def on_selection_modified(self, view):
         global enclosing
-        self.display_errors(view)
+        self.show_errors_phantoms(view)
         enclosing[view.id()] = None
 
-    def display_errors(self, view):
+    def show_errors_phantoms(self, view):
         """
-        Display error message to the status bar when the selection intersects
-        with errors in the current view.
+        Display all error messages using phantoms. Only display messages when 
+        the cursor intersect with the message area.
         """
-
         view.erase_phantoms("merlin_error_phantom")
 
         caret_region = view.sel()[0]
 
         for message_region, message_text in self.error_messages:
-            if message_region.intersects(caret_region):
+            if caret_region.begin() == caret_region.end():
+                relaxed_intersect = (message_region.begin() <= caret_region.begin()) and \
+                                    (message_region.end() >= caret_region.begin())
+            else:
+                relaxed_intersect = message_region.intersects(caret_region)
+
+            if relaxed_intersect:
                 phantom_type = "warning" if message_text[:7] == "Warning" else "error"
                 message_lines = message_text.split("\n")
                 wrapped_message = "<br />".join("<br />".join(textwrap.wrap(message_line, 80, break_long_words=False)) for message_line in message_lines)
-                phantom_content = phantom_style + "<div class='merlin-phantom merlin-" + phantom_type + "'>" + wrapped_message + "</div>"
-                view.add_phantom("merlin_error_phantom", sublime.Region(message_region.end(), message_region.end()), phantom_content, sublime.LAYOUT_BLOCK)
+
+                phantom_content = "{}<div class='merlin-phantom merlin-{}'>{}</div>".format(phantom_style, phantom_type, wrapped_message)
+                phantom_region = sublime.Region(message_region.end(), message_region.end())
+
+                view.add_phantom(
+                    "merlin_error_phantom",
+                    phantom_region, phantom_content, sublime.LAYOUT_BLOCK)
 
