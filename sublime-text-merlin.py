@@ -701,6 +701,7 @@ class MerlinBuffer(sublime_plugin.EventListener):
         for message_region, message_text in self.error_messages:
             if message_region.intersects(caret_region):
                 phantom_type = "warning" if message_text[:7] == "Warning" else "error"
+                message_text = message_text.replace("<", "&lt;").replace(">", "&gt;")
                 message_lines = message_text.split("\n")
                 wrapped_message = "<br />".join("<br />".join(textwrap.wrap(message_line, 80, break_long_words=False)) for message_line in message_lines)
                 phantom_content = phantom_style + "<div class='merlin-phantom merlin-" + phantom_type + "'>" + wrapped_message + "</div>"

@@ -162,7 +162,7 @@ class MerlinView(object):
         """
         Return all errors detected by merlin while parsing the current file.
         """
-        return self.send_query("errors")
+        return self.send_query("errors", verbosity=-1)
 
     def find_list(self):
         """ List all possible external modules to load. """
