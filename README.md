@@ -1,4 +1,6 @@
 # Merlin for Sublime Text 3
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcynddl%2Fsublime-text-merlin.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcynddl%2Fsublime-text-merlin?ref=badge_shield)
+
 
 ## About
 
@@ -18,3 +20,6 @@ or clone this repository in your *Packages* folder:
 ## License
 
 Sublime-Text-Merlin is licensed under the MIT License. See the file LICENSE.md for more details.
+
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcynddl%2Fsublime-text-merlin.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcynddl%2Fsublime-text-merlin?ref=badge_large)
